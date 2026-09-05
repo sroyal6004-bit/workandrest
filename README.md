@@ -20,8 +20,10 @@
 
 ## 1. 올리기 (GitHub Pages)
 
-1. 이 저장소 → **Settings → Pages → Branch: main / (root)** → Save
-2. 잠시 후 `https://<계정>.github.io/workandrest/` 주소로 접속
+브랜치에 푸시하면 `.github/workflows/pages.yml` 이 자동으로 GitHub Pages를 켜고 배포합니다.
+
+1. 저장소 **Actions** 탭에서 "Deploy to GitHub Pages" 가 초록색이면 완료
+2. `https://sroyal6004-bit.github.io/workandrest/` 주소로 접속
 3. 크롬 주소창 오른쪽 **설치** 아이콘(또는 앱 안의 "홈 화면에 설치" 버튼)으로 설치
 
 ## 2. 기기끼리 연결하기 (Firebase, 한 번만 설정)

@@ -69,6 +69,10 @@ header h1 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 body.alarm .alarm-banner{display:block;animation:bannerBlink 1s steps(1) infinite}
 body.alarm{animation:bgBlink 1s steps(1) infinite}
 body.alarm .status-card{border-color:var(--red)!important;animation:none}
+body.warn1h{background:#5c2a08}
+body.warn1h .status-card{background:#7c3a12;border-color:var(--orange)}
+body.warn1h .badge{background:rgba(245,158,11,.25);color:#fde68a}
+body.warn1h .bar i{background:var(--orange)}
 @keyframes bgBlink{0%,100%{background:#7f1d1d}50%{background:var(--bg)}}
 @keyframes bannerBlink{0%,100%{background:#ef4444}50%{background:#991b1b}}
 @media (prefers-reduced-motion:reduce){body.alarm{animation:none;background:#7f1d1d}}
@@ -180,16 +184,20 @@ body.pip .notebox{padding:8px 10px;border-radius:10px} body.pip .notebox .txt{fo
   <div class="alarm-banner" id="alarmBanner">🚨 원장님이 힘들어요<br>더 이상 시술을 잡지 마세요</div>
   <div id="main"></div>
 
-  <section class="card log" id="logCard"></section>
-
   <section class="sect">
     <div class="tools" id="tools">
       <button class="btn" id="popBtn">↗ 옆에 작은 창</button>
       <button class="btn" id="pipBtn2">⧉ 떠 있는 창</button>
       <button class="btn" id="installBtn" hidden>⬇ 홈 화면에 설치</button>
     </div>
-    <p class="hint" style="margin-top:10px">모든 기기에 같은 상태가 실시간으로 함께 보여요. CRM 옆에 두려면 '옆에 작은 창' 또는 '떠 있는 창'을 쓰거나, 태블릿에서는 화면 분할로 오른쪽에 두세요. 빨간 동그라미를 누르면 모든 기기가 빨갛게 깜빡이며 "시술을 더 잡지 마세요" 신호가 됩니다.</p>
+    </section>
+
+  <section class="card log" id="logCard"></section>
+
+  <section class="sect"><p class="hint" style="margin-top:10px">모든 기기에 같은 상태가 실시간으로 함께 보여요. CRM 옆에 두려면 '옆에 작은 창' 또는 '떠 있는 창'을 쓰거나, 태블릿에서는 화면 분할로 오른쪽에 두세요. 빨간 동그라미를 누르면 모든 기기가 빨갛게 깜빡이며 "시술을 더 잡지 마세요" 신호가 됩니다.</p>
   </section>
+
+
 </div>
 
 <div class="pip-prompt" id="pipPrompt">
@@ -223,6 +231,7 @@ body.pip .notebox{padding:8px 10px;border-radius:10px} body.pip .notebox .txt{fo
   <div class="row"><label>근무 간격<small>이만큼 일하면 휴식 알림</small></label><input id="sWork" type="number" inputmode="numeric" min="5" max="600"><span class="unit">분</span></div>
   <div class="row"><label>휴식 길이<small>스트레칭 등 쉬는 시간</small></label><input id="sBreak" type="number" inputmode="numeric" min="1" max="120"><span class="unit">분</span></div>
   <div class="row"><label>미리 알림<small>휴식 몇 분 전에 알릴지 (0이면 끔)</small></label><input id="sWarn" type="number" inputmode="numeric" min="0" max="60"><span class="unit">분</span></div>
+  <div class="row"><label>주황 경고<small>연속 근무가 이만큼 지나면 바탕이 주황색 (0이면 끔)</small></label><input id="sOrange" type="number" inputmode="numeric" min="0" max="600"><span class="unit">분</span></div>
 
   <h4>이 기기 설정</h4>
   <div class="row"><label>조작 버튼 표시<small>원장님 기기에서 켜기. 직원 기기는 꺼서 보기 전용으로</small></label><button class="switch" id="sCtrl"></button></div>
@@ -300,7 +309,7 @@ const FIRESTORE_DB = 'default'; /* Firebase 콘솔에 만든 Firestore 데이터
 
 /* ===== 상태 ===== */
 const SPACE_ID = 'workandrest-clinic-main'; /* 병원 공용 공간 ID (Firestore 문서 이름, 10자 이상) */
-const DEF_SHARED = { name:'원장님', workMin:90, breakMin:10, warnMin:5, status:'off', events:[], alarm:false, breakAt:0, note:'', noteAt:0, breakLen:0, presets:['오늘 리터치 그만','쉬게 해줘~~','다시 잡아도 됨','리터치는 하고 시술은 예약'], updated:0 };
+const DEF_SHARED = { name:'원장님', workMin:90, breakMin:10, warnMin:5, status:'off', events:[], alarm:false, breakAt:0, note:'', noteAt:0, breakLen:0, orangeMin:60, presets:['오늘 리터치 그만','쉬게 해줘~~','다시 잡아도 됨','리터치는 하고 시술은 예약'], updated:0 };
 const DEF_LOCAL  = { ctrl:true, notify:false, sound:false, wake:false, pipShape:'wide', pipW:320, pipH:300 };
 let S = load('wr_shared', DEF_SHARED);
 let L = load('wr_local', DEF_LOCAL);
@@ -310,7 +319,7 @@ if(IS_MINI) document.body.classList.add('mini');
 function load(k, def){ try{ const v=JSON.parse(localStorage.getItem(k)||'null'); return v? Object.assign({}, def, v) : {...def}; }catch{ return {...def}; } }
 function saveShared(push=true){ localStorage.setItem('wr_shared', JSON.stringify(S)); if(push) pushShared(); }
 function saveLocal(){ localStorage.setItem('wr_local', JSON.stringify(L)); }
-function normalize(r){ const o=Object.assign({}, DEF_SHARED, r||{}); o.events=Array.isArray(o.events)?o.events.filter(e=>e&&typeof e.t==='number'&&e.type).sort((a,b)=>a.t-b.t):[]; o.workMin=+o.workMin||90; o.breakMin=+o.breakMin||10; o.warnMin=Math.max(0,+o.warnMin||0); if(!['off','working','break'].includes(o.status)) o.status='off'; o.alarm=!!o.alarm; o.breakAt=+o.breakAt||0; o.note=typeof o.note==='string'?o.note.slice(0,300):''; o.noteAt=+o.noteAt||0; o.breakLen=+o.breakLen||0; o.presets=Array.isArray(o.presets)?o.presets.filter(x=>typeof x==='string'&&x.trim()).map(x=>x.slice(0,60)).slice(0,30):[...DEF_SHARED.presets]; return o; }
+function normalize(r){ const o=Object.assign({}, DEF_SHARED, r||{}); o.events=Array.isArray(o.events)?o.events.filter(e=>e&&typeof e.t==='number'&&e.type).sort((a,b)=>a.t-b.t):[]; o.workMin=+o.workMin||90; o.breakMin=+o.breakMin||10; o.warnMin=Math.max(0,+o.warnMin||0); if(!['off','working','break'].includes(o.status)) o.status='off'; o.alarm=!!o.alarm; o.breakAt=+o.breakAt||0; o.note=typeof o.note==='string'?o.note.slice(0,300):''; o.noteAt=+o.noteAt||0; o.breakLen=+o.breakLen||0; o.orangeMin=Math.max(0,+o.orangeMin||0); o.presets=Array.isArray(o.presets)?o.presets.filter(x=>typeof x==='string'&&x.trim()).map(x=>x.slice(0,60)).slice(0,30):[...DEF_SHARED.presets]; return o; }
 S = normalize(S);
 
 /* ===== 유틸 ===== */
@@ -398,6 +407,7 @@ function renderLive(root){
   card.className=cls; q('badge').textContent=badge; q('name').textContent=S.name||'원장님';
   q('timer').textContent=timer; q('tlabel').textContent=tlabel; const nx=q('next'); nx.innerHTML=next; nx.classList.toggle('clickable', L.ctrl && c.status==='working'); nx.dataset.adjust = (L.ctrl && c.status==='working') ? '1' : '';
   root.ownerDocument.body.classList.toggle('alarm', !!S.alarm);
+  root.ownerDocument.body.classList.toggle('warn1h', c.status==='working' && S.orangeMin>0 && c.segMs>=S.orangeMin*60000);
   const nb=q('note'); const hasNote=!!(S.note&&S.note.trim());
   nb.classList.toggle('show', hasNote || L.ctrl); nb.classList.toggle('clickable', L.ctrl); nb.dataset.note = L.ctrl?'1':'';
   const tx=nb.querySelector('.txt'); tx.textContent = hasNote? S.note : '메모를 남기려면 누르세요'; tx.classList.toggle('empty',!hasNote);
@@ -460,9 +470,13 @@ $('#breakLenCancel').onclick=uiBack;
 $('#breakLenChoice').addEventListener('click', e=>{
   const b=e.target.closest('[data-blen]'); if(!b) return; const m=+b.dataset.blen;
   if(S.status!=='working') return uiBack();
-  const now=Date.now(); S.events.push({t:now,type:'break'}); S.status='break'; S.breakLen=m; S.breakAt=0; S.updated=now; saveShared(); renderAll(); uiBack();
-  toast(`${m>=60?'1시간':m+'분'} 휴식 시작 🧘 ${hm(now+m*60000)}까지`);
+  startBreak(m); uiBack();
 });
+function startBreak(m){
+  if(S.status!=='working') return;
+  const now=Date.now(); S.events.push({t:now,type:'break'}); S.status='break'; S.breakLen=m; S.breakAt=0; S.updated=now; saveShared(); renderAll();
+  toast(`${m>=60?'1시간':m+'분'} 휴식 시작 🧘 ${hm(now+m*60000)}까지`);
+}
 $('#breakSheet').addEventListener('click', e=>{
   const b=e.target.closest('[data-bmin]'); if(!b) return; const m=+b.dataset.bmin;
   if(S.status!=='working') return uiBack();
@@ -532,15 +546,15 @@ document.querySelectorAll('.switch').forEach(b=>b.addEventListener('click', asyn
 }));
 function openSettings(){
   openLayer('settingsSheet', ()=>{
-    $('#sName').value=S.name; $('#sWork').value=S.workMin; $('#sBreak').value=S.breakMin; $('#sWarn').value=S.warnMin;
+    $('#sName').value=S.name; $('#sWork').value=S.workMin; $('#sBreak').value=S.breakMin; $('#sWarn').value=S.warnMin; $('#sOrange').value=S.orangeMin;
     setSw('#sCtrl',L.ctrl); setSw('#sNotify',L.notify); setSw('#sSound',L.sound); setSw('#sWake',L.wake); $('#sPipShape').value=L.pipShape||'wide';
     $('#diagOut').hidden=true;
   });
 }
 $('#settingsBtn').onclick=openSettings; $('#closeSettings').onclick=uiBack;
 $('#saveSettings').onclick=()=>{
-  const name=$('#sName').value.trim()||'원장님', w=Math.max(5,+$('#sWork').value||90), b=Math.max(1,+$('#sBreak').value||10), wm=Math.max(0,+$('#sWarn').value||0);
-  if(name!==S.name||w!==S.workMin||b!==S.breakMin||wm!==S.warnMin){ Object.assign(S,{name,workMin:w,breakMin:b,warnMin:wm,updated:Date.now()}); saveShared(); }
+  const name=$('#sName').value.trim()||'원장님', w=Math.max(5,+$('#sWork').value||90), b=Math.max(1,+$('#sBreak').value||10), wm=Math.max(0,+$('#sWarn').value||0), om=Math.max(0,+$('#sOrange').value||0);
+  if(name!==S.name||w!==S.workMin||b!==S.breakMin||wm!==S.warnMin||om!==S.orangeMin){ Object.assign(S,{name,workMin:w,breakMin:b,warnMin:wm,orangeMin:om,updated:Date.now()}); saveShared(); }
   const shape=$('#sPipShape').value; if(shape!==L.pipShape && pipVideoOn){ pipVideoOn=false; pipCanvas=null; try{ $('#pipVideo').srcObject=null; }catch{} }
   L={...L, ctrl:getSw('#sCtrl'), notify:getSw('#sNotify'), sound:getSw('#sSound'), wake:getSw('#sWake'), pipShape:shape};
   saveLocal(); applyWake(); renderAll(); uiBack(); toast('저장했어요');
@@ -631,8 +645,13 @@ async function openPip(opt={}){
   if(document.pictureInPictureEnabled){
     try{
       const v=$('#pipVideo');
-      if(!pipVideoOn){ const size={wide:[480,270],square:[400,400],tall:[300,420]}[L.pipShape]||[480,270]; const cv=document.createElement('canvas'); cv.width=size[0]; cv.height=size[1]; pipCanvas=cv; drawPipCanvas(); v.srcObject=cv.captureStream(4); pipVideoOn=true; }
-      await v.play(); await v.requestPictureInPicture();
+      if(!pipVideoOn){
+        const size={wide:[480,270],square:[400,400],tall:[300,420]}[L.pipShape]||[480,270];
+        const cv=document.createElement('canvas'); cv.width=size[0]; cv.height=size[1]; pipCanvas=cv; drawPipCanvas();
+        const stream=cv.captureStream(4); const at=silentAudioTrack(); if(at) stream.addTrack(at);
+        v.srcObject=stream; v.muted=!at; pipVideoOn=true;
+      }
+      await v.play(); setupMediaSession(v); await v.requestPictureInPicture();
       v.addEventListener('leavepictureinpicture',()=>{ v.pause(); },{once:true});
       if(!quiet) toast('떠 있는 창을 열었어요 (보기 전용). 두 손가락으로 크기 조절, 모양은 설정에서');
       return true;
@@ -642,24 +661,48 @@ async function openPip(opt={}){
   return false;
 }
 let pipCanvas=null;
+/* PiP 창을 탭하면 나오는 ⏮ ⏭ 버튼에 기능 연결 (안드로이드 영상형 PiP) */
+function silentAudioTrack(){
+  try{ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==='suspended') audioCtx.resume();
+    const dst=audioCtx.createMediaStreamDestination(); const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); g.gain.value=0; o.connect(g).connect(dst); o.start();
+    return dst.stream.getAudioTracks()[0]||null; }catch{ return null; }
+}
+function setupMediaSession(v){
+  if(!('mediaSession' in navigator)) return; const ms=navigator.mediaSession;
+  try{ ms.metadata=new MediaMetadata({title:`${S.name||'원장님'} 근무·휴식`, artist:'⏭ 쉬기 / 다시 일하기 · ⏮ 빨간불', artwork:[{src:'./icon-192.png',sizes:'192x192',type:'image/png'},{src:'./icon-512.png',sizes:'512x512',type:'image/png'}]}); }catch{}
+  const h=(a,f)=>{ try{ ms.setActionHandler(a,f); }catch{} };
+  const keep=()=>{ v.play().catch(()=>{}); try{ ms.playbackState='playing'; }catch{} };
+  h('play',keep); h('pause',keep); h('stop',keep);
+  h('nexttrack',()=>{ if(!L.ctrl) return toast('보기 전용 기기예요'); if(S.status==='working') startBreak(S.breakMin); else if(S.status==='break') act('resume'); else act('start'); });
+  h('previoustrack',()=>{ if(!L.ctrl) return toast('보기 전용 기기예요'); act('alarm'); });
+  try{ ms.playbackState='playing'; }catch{}
+}
+setInterval(()=>{ if(pipVideoOn) drawPipCanvas(); },500);
 function fitText(ctx, text, maxW){ if(ctx.measureText(text).width<=maxW) return text; while(text.length>1 && ctx.measureText(text+'…').width>maxW) text=text.slice(0,-1); return text+'…'; }
 function drawPipCanvas(){
-  if(!pipCanvas) return; const ctx=pipCanvas.getContext('2d'), W=pipCanvas.width, H=pipCanvas.height; const c=calc(Date.now());
+  if(!pipCanvas) return; const ctx=pipCanvas.getContext('2d'), W=pipCanvas.width, H=pipCanvas.height; const now=Date.now(); const c=calc(now);
   const theme={working:['#14532d','#22c55e'],break:['#312e81','#a78bfa'],off:['#1e293b','#94a3b8']};
   let [bg,fg]=theme[c.status]||theme.off; let badge, big, sub;
-  if(c.status==='working'){ big=clock(c.segMs); if(c.remain>0){ badge='근무 중'; sub=`다음 휴식까지 ${durCeil(c.remain)} (${hm(c.dueAt)})`; } else { badge='휴식 시간이에요!'; sub=`${durCeil(-c.remain)} 지남`; bg='#7c2d12'; fg='#fbbf24'; } }
+  if(c.status==='working'){ big=clock(c.segMs); if(S.orangeMin>0 && c.segMs>=S.orangeMin*60000){ bg='#7c3a12'; fg='#fde68a'; } if(c.remain>0){ badge='근무 중'; sub=`다음 휴식까지 ${durCeil(c.remain)} (${hm(c.dueAt)})`; } else { badge='휴식 시간이에요!'; sub=`${durCeil(-c.remain)} 지남`; bg='#7c2d12'; fg='#fbbf24'; } }
   else if(c.status==='break'){ big=clock(c.segMs); if(c.remain>0){ badge='휴식 중'; sub=`휴식 끝까지 ${durCeil(c.remain)} (${hm(c.dueAt)})`; } else { badge='휴식 끝'; sub=`다시 일할 시간 · ${durCeil(-c.remain)} 지남`; bg='#7c2d12'; fg='#fbbf24'; } }
   else if(c.empty){ badge='근무 전'; big='--:--'; sub='아직 시작 안 함'; }
   else { badge='퇴근'; big=dur(c.totalWork); sub=`${hm(c.start)} 출근 · 총 근무`; }
-  if(S.alarm){ const on=Math.floor(Date.now()/500)%2===0; bg=on?'#b91c1c':'#450a0a'; fg='#fff'; badge='🚨 시술 그만'; sub='원장님이 힘들어요 · 더 잡지 마세요'; }
+  if(S.alarm){ const on=Math.floor(now/500)%2===0; bg=on?'#dc2626':'#450a0a'; fg='#fff'; badge='🚨 시술 그만'; sub='원장님이 힘들어요 · 더 잡지 마세요'; }
   const u=Math.min(W,H)/270;
-  const note=(S.note||'').trim(); const rows = note? 4 : 3; const rowH=H/(rows+0.6);
+  const note=(S.note||'').trim();
+  const nextLabel = c.status==='working' ? '쉬기' : c.status==='break' ? '다시 일하기' : '근무 시작';
+  const lines=[
+    {t:`${S.name||'원장님'} · ${badge}`, f:24, c:fg, b:true},
+    {t:big, f:58, c:'#fff', b:true},
+    {t:sub, f:34, c:'#fef3c7', b:true},
+  ];
+  if(note) lines.push({t:'💬 '+note.replace(/\s+/g,' '), f:24, c:'#e2e8f0'});
+  if(L.ctrl) lines.push({t:`창을 탭 → ⏭ ${nextLabel} · ⏮ ${S.alarm?'빨간불 해제':'빨간불'}`, f:17, c:'rgba(255,255,255,.75)'});
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); ctx.textAlign='center'; ctx.textBaseline='middle';
-  let y=rowH*0.8;
-  ctx.fillStyle=fg; ctx.font=`bold ${Math.round(24*u)}px sans-serif`; ctx.fillText(fitText(ctx,`${S.name||'원장님'} · ${badge}`,W*0.94),W/2,y); y+=rowH;
-  ctx.fillStyle='#fff'; ctx.font=`bold ${Math.round(58*u)}px sans-serif`; ctx.fillText(big,W/2,y); y+=rowH;
-  ctx.fillStyle='#fef3c7'; ctx.font=`bold ${Math.round(34*u)}px sans-serif`; ctx.fillText(fitText(ctx,sub,W*0.94),W/2,y); y+=rowH;
-  if(note){ ctx.fillStyle='#e2e8f0'; ctx.font=`${Math.round(24*u)}px sans-serif`; ctx.fillText(fitText(ctx,'💬 '+note.replace(/\s+/g,' '),W*0.94),W/2,y); }
+  const rowH=H/(lines.length+0.4); let y=rowH*0.7;
+  for(const ln of lines){ ctx.fillStyle=ln.c; let f=ln.f*u; const setF=()=>{ ctx.font=`${ln.b?'bold ':''}${Math.round(f)}px sans-serif`; }; setF();
+    while(ctx.measureText(ln.t).width>W*0.94 && f>ln.f*u*0.62){ f-=1; setF(); }
+    ctx.fillText(fitText(ctx,ln.t,W*0.94),W/2,y); y+=rowH; }
 }
 $('#pipBtn').onclick=()=>openPip(); $('#pipBtn2').onclick=()=>openPip();
 

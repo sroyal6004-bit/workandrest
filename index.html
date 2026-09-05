@@ -195,7 +195,7 @@ body.pip .notebox{padding:8px 10px;border-radius:10px} body.pip .notebox .txt{fo
 <div class="pip-prompt" id="pipPrompt">
   <div class="box">
     <h3>떠 있는 창으로 볼까요?</h3>
-    <p>앱을 닫는 대신 작은 창으로 띄워 다른 앱 위에서도 시간을 볼 수 있어요.</p>
+    <p>앱을 닫는 대신 작은 창으로 띄워 다른 앱 위에서도 시간을 볼 수 있어요.<br>창을 끄려면 그 창의 ✕ 버튼을 누르세요.</p>
     <button class="btn primary" id="pipPromptOpen">⧉ 떠 있는 창 열기</button>
     <button class="btn ghost" id="pipPromptStay">그냥 계속 보기</button>
   </div>
@@ -483,13 +483,18 @@ function hideLayer(tag){ $('#'+tag).classList.remove('show'); if(!uiStack.length
 function openLayer(tag,prep){ if(prep) prep(); showLayer(tag); uiStack.push({tag,pushed:pushHist(tag)}); }
 function uiBack(){ const t=uiStack[uiStack.length-1]; if(!t) return; if(t.pushed) history.back(); else { uiStack.pop(); hideLayer(t.tag); } }
 /* 홈에서 뒤로가기: 앱 종료 대신 떠 있는 창 */
-let homeGuard=false;
-function armHomeGuard(){ try{ history.pushState({home:1},''); homeGuard=true; }catch{ homeGuard=false; } }
+/* 크롬(안드로이드)은 사용자 터치 없이 넣은 히스토리 항목을 뒤로가기에서 건너뛰므로,
+   첫 터치 때(그리고 항목이 소진될 때마다) 다시 세운다 */
+let homeGuard=false, guardTrusted=false, hadGesture=false;
+function armHomeGuard(){ try{ history.pushState({home:1},''); homeGuard=true; guardTrusted=hadGesture; }catch{ homeGuard=false; } }
+function onGesture(){ hadGesture=true; if(!homeGuard || !guardTrusted) armHomeGuard(); }
+document.addEventListener('pointerdown', onGesture, {capture:true, passive:true});
+document.addEventListener('keydown', onGesture, {capture:true});
 window.addEventListener('popstate',()=>{
   if(uiStack.length){ hideLayer(uiStack.pop().tag); return; }
   if(!homeGuard) return;
-  armHomeGuard();
-  if(pipWin || document.pictureInPictureElement) return;
+  homeGuard=false; armHomeGuard();
+  if(pipWin || document.pictureInPictureElement){ toast('떠 있는 창이 켜져 있어요. 홈 버튼으로 나가면 다른 앱 위에도 계속 보여요. 끄려면 창의 ✕',3500); return; }
   Promise.race([openPip({quiet:true}), new Promise(r=>setTimeout(()=>r('timeout'),1200))])
     .then(ok=>{ if(ok!==true && !pipWin && !document.pictureInPictureElement) $('#pipPrompt').classList.add('show'); });
 });

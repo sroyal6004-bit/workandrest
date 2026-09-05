@@ -29,23 +29,21 @@
 ## 2. 기기끼리 연결하기 (Firebase, 한 번만 설정)
 
 동기화는 Google Firebase의 Firestore를 사용합니다. 무료 범위로 충분합니다.
+이 앱에는 `workandrest-a9a7e` 프로젝트의 Firebase 설정이 이미 들어 있습니다 (`index.html` 상단 `FIREBASE_CONFIG`).
 
-1. https://console.firebase.google.com → **프로젝트 추가** → 이름 입력(예: workandrest) → Google 애널리틱스는 꺼도 됨 → 만들기
-2. 왼쪽 메뉴 **빌드 → Firestore Database → 데이터베이스 만들기** → 위치는 `asia-northeast3 (Seoul)` → **프로덕션 모드**로 시작
-3. Firestore 화면 상단 **규칙** 탭 → 내용을 모두 지우고 이 저장소의 `firestore.rules` 내용을 붙여넣기 → **게시**
-4. 프로젝트 개요 옆 **⚙ → 프로젝트 설정 → 일반** 하단 **내 앱 → 웹(</>)** 추가 → 앱 이름 입력 → 등록
-5. 화면에 나오는 `const firebaseConfig = { apiKey: "...", ... }` 부분을 복사
+Firebase 콘솔(https://console.firebase.google.com → workandrest 프로젝트)에서:
+
+1. 왼쪽 메뉴 **빌드 → Firestore Database → 데이터베이스 만들기** → 위치는 `asia-northeast3 (Seoul)` → **프로덕션 모드**로 시작 → 만들기
+2. Firestore 화면 상단 **규칙** 탭 → 내용을 모두 지우고 이 저장소의 `firestore.rules` 내용을 붙여넣기 → **게시**
 
 앱에서:
 
-6. **⚙ 설정 → Firebase 설정** 칸에 5번에서 복사한 내용을 그대로 붙여넣기 (중괄호 `{ ... }` 부분만 있어도 됨)
-7. **연결 코드**에서 **새로 만들기** → 코드가 생성됨 (10자 이상이면 직접 정해도 됨)
-8. **동기화 상태 점검** → 읽기/쓰기 모두 ✅ 인지 확인 → **저장**
-9. 직원 기기에서도 같은 주소로 앱을 열고 **같은 Firebase 설정 + 같은 연결 코드**를 넣으면 끝
+3. **⚙ 설정 → 연결 코드 → 새로 만들기** (10자 이상이면 직접 정해도 됨)
+4. **동기화 상태 점검** → 읽기/쓰기 모두 ✅ 인지 확인 → **저장**
+5. 직원 기기에서도 같은 주소로 앱을 열고 **같은 연결 코드**를 넣으면 끝
 
 > 연결 코드는 비밀번호 역할입니다. 직원에게만 알려주세요.
-> 매 기기마다 붙여넣기가 번거로우면 `index.html` 상단의 `FIREBASE_CONFIG = null` 을
-> `FIREBASE_CONFIG = { apiKey: "...", ... }` 로 바꿔 두면 연결 코드만 넣으면 됩니다.
+> 다른 Firebase 프로젝트를 쓰려면 설정의 "Firebase 설정" 칸에 그 프로젝트의 firebaseConfig를 붙여넣거나 `index.html`의 `FIREBASE_CONFIG`를 바꾸면 됩니다.
 
 ## 3. CRM 옆에 띄우기
 

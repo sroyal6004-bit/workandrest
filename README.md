@@ -44,6 +44,7 @@ Firebase 콘솔(https://console.firebase.google.com → workandrest 프로젝트
 4. 직원 기기에서도 같은 주소로 앱을 열면 자동으로 같은 상태가 보입니다 (별도 코드 입력 없음)
 
 > 모든 기기는 `index.html`의 `SPACE_ID`(`workandrest-clinic-main`) 문서를 함께 사용합니다.
+> Firestore 데이터베이스 이름은 `index.html`의 `FIRESTORE_DB`(현재 `default`)와 같아야 합니다. 콘솔의 Firestore 화면 상단에 표시되는 이름입니다.
 > 다른 Firebase 프로젝트를 쓰려면 `index.html`의 `FIREBASE_CONFIG`를 바꾸면 됩니다.
 
 ## 3. CRM 옆에 띄우기

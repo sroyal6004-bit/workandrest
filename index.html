@@ -227,6 +227,7 @@ const FIREBASE_CONFIG = {
   appId: "1:803425857401:web:99fd2eb884b40e9bbcc9a8"
 };
 const FB_VER = '10.12.2';
+const FIRESTORE_DB = 'default'; /* Firebase 콘솔에 만든 Firestore 데이터베이스 이름. 기본 DB면 '(default)' */
 
 /* ===== 상태 ===== */
 const SPACE_ID = 'workandrest-clinic-main'; /* 병원 공용 공간 ID (Firestore 문서 이름, 10자 이상) */
@@ -537,7 +538,7 @@ async function loadFb(cfg){
   const fsM=await import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-firestore.js`);
   const name='wr-'+btoa(unescape(encodeURIComponent(cfg.projectId||'')+'|'+(cfg.apiKey||''))).replace(/[^a-z0-9]/gi,'').slice(0,20);
   const app=appM.getApps().find(a=>a.name===name)||appM.initializeApp(cfg,name);
-  return {appM,fsM,db:fsM.getFirestore(app)};
+  return {appM,fsM,db: FIRESTORE_DB && FIRESTORE_DB!=='(default)' ? fsM.getFirestore(app, FIRESTORE_DB) : fsM.getFirestore(app)};
 }
 async function connectSync(){
   if(unsub){ unsub(); unsub=null; } fb=null;
@@ -565,7 +566,7 @@ $('#diagBtn').onclick=async()=>{
   const code=SPACE_ID, cfg=FIREBASE_CONFIG;
   log(`온라인: ${navigator.onLine?'예':'아니오'}`);
   if(!cfg){ log('❌ 앱에 Firebase 설정이 없어요'); return; }
-  log(`프로젝트: ${cfg.projectId||'(없음)'} · 공간: ${code}`);
+  log(`프로젝트: ${cfg.projectId||'(없음)'} · DB: ${FIRESTORE_DB} · 공간: ${code}`);
   try{ const f=await loadFb(cfg); log('✅ Firebase SDK 로드');
     const ref=f.fsM.doc(f.db,'spaces',code);
     try{ const s=await f.fsM.getDoc(ref); log(`✅ 읽기 OK (문서 ${s.exists()?'있음, 마지막 갱신 '+new Date(s.data().updated||0).toLocaleString():'없음'})`); }catch(e){ log('❌ 읽기 실패: '+(e.code||e.message)+'\n → Firestore 규칙에서 spaces/{id} get/write 허용 필요 (README)'); return; }

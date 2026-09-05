@@ -58,6 +58,21 @@ header h1 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .btn.warn{background:var(--orange);color:#3b1d05}
 .btn.ghost{background:var(--card);color:var(--muted);font-size:15px;padding:12px}
 .btn.danger{background:rgba(239,68,68,.15);color:#fca5a5}
+.btn.stop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:var(--card);color:var(--muted);font-size:13px;font-weight:600;padding:10px}
+.btn.stop .circle{width:44px;height:44px;border-radius:50%;background:var(--red);box-shadow:0 0 0 4px rgba(239,68,68,.25), inset 0 -3px 6px rgba(0,0,0,.25);display:grid;place-items:center;color:#fff;font-size:15px;font-weight:800}
+.btn.stop.on{background:rgba(239,68,68,.25);color:#fecaca}
+.btn.stop.on .circle{background:#fff;color:var(--red);box-shadow:0 0 0 4px rgba(255,255,255,.35)}
+.next.clickable{cursor:pointer;text-decoration:underline dotted var(--muted);text-underline-offset:4px}
+.alarm-banner{display:none;background:var(--red);color:#fff;border-radius:14px;padding:12px 14px;text-align:center;font-weight:800;font-size:17px;line-height:1.35}
+body.alarm .alarm-banner{display:block;animation:bannerBlink 1s steps(1) infinite}
+body.alarm{animation:bgBlink 1s steps(1) infinite}
+body.alarm .status-card{border-color:var(--red)!important;animation:none}
+@keyframes bgBlink{0%,100%{background:#7f1d1d}50%{background:var(--bg)}}
+@keyframes bannerBlink{0%,100%{background:#ef4444}50%{background:#991b1b}}
+@media (prefers-reduced-motion:reduce){body.alarm{animation:none;background:#7f1d1d}}
+.choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.choice .btn{margin:0;font-size:18px;padding:16px}
+.choice .btn.wide{grid-column:1/-1;font-size:15px;padding:12px;background:var(--card2);color:var(--muted)}
 .btn:active{transform:scale(.98)}
 .log h2,.sect h2{font-size:14px;color:var(--muted);margin:0 0 10px;font-weight:600;display:flex;justify-content:space-between}
 .log ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
@@ -115,6 +130,8 @@ body.pip .card{padding:10px;gap:6px;border-radius:12px}
 body.pip .timer{font-size:clamp(30px,20vw,48px)}
 body.pip .next{font-size:14px} body.pip .meta{display:none} body.pip .name{display:none}
 body.pip .btn{font-size:15px;padding:10px;min-height:42px;border-radius:12px}
+body.pip .btn.stop{font-size:11px;gap:2px} body.pip .btn.stop .circle{width:30px;height:30px;font-size:11px}
+body.pip .alarm-banner{font-size:13px;padding:8px}
 body.pip .actions.two{grid-template-columns:1fr 1fr} body.pip .actions{gap:6px}
 </style>
 </head>
@@ -127,6 +144,7 @@ body.pip .actions.two{grid-template-columns:1fr 1fr} body.pip .actions{gap:6px}
     <button class="icon-btn" id="settingsBtn" title="설정">⚙</button>
   </header>
 
+  <div class="alarm-banner" id="alarmBanner">🚨 원장님이 힘들어요<br>더 이상 시술을 잡지 마세요</div>
   <div id="main"></div>
 
   <section class="card log" id="logCard"></section>
@@ -137,7 +155,7 @@ body.pip .actions.two{grid-template-columns:1fr 1fr} body.pip .actions{gap:6px}
       <button class="btn" id="pipBtn2">⧉ 떠 있는 창</button>
       <button class="btn" id="installBtn" hidden>⬇ 홈 화면에 설치</button>
     </div>
-    <p class="hint" style="margin-top:10px">직원 기기와 원장님 기기에 같은 <b>연결 코드</b>를 넣으면 실시간으로 함께 보여요. CRM 옆에 두려면 '옆에 작은 창' 또는 '떠 있는 창'을 쓰거나, 태블릿에서는 화면 분할로 오른쪽에 두세요.</p>
+    <p class="hint" style="margin-top:10px">모든 기기에 같은 상태가 실시간으로 함께 보여요. CRM 옆에 두려면 '옆에 작은 창' 또는 '떠 있는 창'을 쓰거나, 태블릿에서는 화면 분할로 오른쪽에 두세요. 빨간 동그라미를 누르면 모든 기기가 빨갛게 깜빡이며 "시술을 더 잡지 마세요" 신호가 됩니다.</p>
   </section>
 </div>
 
@@ -158,25 +176,33 @@ body.pip .actions.two{grid-template-columns:1fr 1fr} body.pip .actions{gap:6px}
   <div class="row"><label>알림 소리<small>짧은 알림음</small></label><button class="switch" id="sSound"></button></div>
   <div class="row"><label>화면 항상 켜기<small>태블릿을 안내판처럼 둘 때</small></label><button class="switch" id="sWake"></button></div>
 
-  <h4>기기 간 연결 (Firebase)</h4>
-  <div class="row" style="flex-direction:column;align-items:stretch">
-    <label>연결 코드<small>10자 이상. 같은 코드를 넣은 기기끼리 실시간 공유됩니다. 코드는 비밀번호 역할이니 직원에게만 알려주세요.</small></label>
-    <div class="inline" style="margin-top:8px"><input id="sCode" placeholder="예: clinic-2026-xk7p" autocapitalize="off" autocomplete="off"><button class="btn" id="genCode">새로 만들기</button></div>
-  </div>
-  <div class="row" style="flex-direction:column;align-items:stretch">
-    <label>Firebase 설정 (선택)<small>앱에 기본 설정이 들어 있어 보통은 비워 둡니다. 다른 Firebase 프로젝트를 쓸 때만 firebaseConfig를 붙여넣기.</small></label>
-    <textarea id="sFb" placeholder='{ "apiKey": "...", "projectId": "...", ... }'></textarea>
-  </div>
+  <h4>기기 간 연결</h4>
+  <p class="hint">이 앱을 연 모든 기기는 자동으로 같은 상태를 공유합니다.</p>
   <button class="btn small" id="diagBtn">동기화 상태 점검</button>
   <pre class="diag" id="diagOut" hidden></pre>
 
   <h4>백업</h4>
   <div class="inline"><button class="btn small" id="exportBtn">내보내기(JSON)</button><button class="btn small" id="importBtn">가져오기</button></div>
   <input type="file" id="importFile" accept="application/json" hidden>
+  <button class="btn small" id="endDayBtn">오늘 근무 마치기</button>
   <button class="btn small danger" id="resetDayBtn">오늘 기록 지우기</button>
 
   <button class="btn primary" id="saveSettings">저장</button>
   <button class="btn ghost" id="closeSettings">닫기</button>
+</div>
+
+<!-- 다음 휴식 시간 조절 -->
+<div class="sheet" id="breakSheet">
+  <h3>다음 휴식까지</h3>
+  <p class="hint">지금부터 얼마 뒤에 휴식할지 정합니다. 모든 기기에 함께 반영됩니다.</p>
+  <div class="choice">
+    <button class="btn break" data-bmin="15">15분 후</button>
+    <button class="btn break" data-bmin="30">30분 후</button>
+    <button class="btn break" data-bmin="45">45분 후</button>
+    <button class="btn break" data-bmin="60">60분 후</button>
+    <button class="btn wide" data-bmin="0">기본 간격으로 되돌리기</button>
+  </div>
+  <button class="btn ghost" id="breakCancel">취소</button>
 </div>
 
 <!-- 시간 수정 -->
@@ -203,8 +229,9 @@ const FIREBASE_CONFIG = {
 const FB_VER = '10.12.2';
 
 /* ===== 상태 ===== */
-const DEF_SHARED = { name:'원장님', workMin:90, breakMin:10, warnMin:5, status:'off', events:[], updated:0 };
-const DEF_LOCAL  = { ctrl:true, notify:false, sound:false, wake:false, code:'', fb:'' };
+const SPACE_ID = 'workandrest-clinic-main'; /* 병원 공용 공간 ID (Firestore 문서 이름, 10자 이상) */
+const DEF_SHARED = { name:'원장님', workMin:90, breakMin:10, warnMin:5, status:'off', events:[], alarm:false, breakAt:0, updated:0 };
+const DEF_LOCAL  = { ctrl:true, notify:false, sound:false, wake:false };
 let S = load('wr_shared', DEF_SHARED);
 let L = load('wr_local', DEF_LOCAL);
 const IS_MINI = new URLSearchParams(location.search).get('mini')==='1';
@@ -213,7 +240,7 @@ if(IS_MINI) document.body.classList.add('mini');
 function load(k, def){ try{ const v=JSON.parse(localStorage.getItem(k)||'null'); return v? Object.assign({}, def, v) : {...def}; }catch{ return {...def}; } }
 function saveShared(push=true){ localStorage.setItem('wr_shared', JSON.stringify(S)); if(push) pushShared(); }
 function saveLocal(){ localStorage.setItem('wr_local', JSON.stringify(L)); }
-function normalize(r){ const o=Object.assign({}, DEF_SHARED, r||{}); o.events=Array.isArray(o.events)?o.events.filter(e=>e&&typeof e.t==='number'&&e.type).sort((a,b)=>a.t-b.t):[]; o.workMin=+o.workMin||90; o.breakMin=+o.breakMin||10; o.warnMin=Math.max(0,+o.warnMin||0); if(!['off','working','break'].includes(o.status)) o.status='off'; return o; }
+function normalize(r){ const o=Object.assign({}, DEF_SHARED, r||{}); o.events=Array.isArray(o.events)?o.events.filter(e=>e&&typeof e.t==='number'&&e.type).sort((a,b)=>a.t-b.t):[]; o.workMin=+o.workMin||90; o.breakMin=+o.breakMin||10; o.warnMin=Math.max(0,+o.warnMin||0); if(!['off','working','break'].includes(o.status)) o.status='off'; o.alarm=!!o.alarm; o.breakAt=+o.breakAt||0; return o; }
 S = normalize(S);
 
 /* ===== 유틸 ===== */
@@ -224,6 +251,7 @@ function clock(ms){ ms=Math.max(0,ms); const s=Math.floor(ms/1000), h=Math.floor
 function dur(ms){ ms=Math.max(0,ms); const m=Math.round(ms/60000), h=Math.floor(m/60), mm=m%60; if(h&&mm) return `${h}시간 ${mm}분`; if(h) return `${h}시간`; return `${mm}분`; }
 function durCeil(ms){ return dur(Math.ceil(Math.max(0,ms)/60000)*60000); }
 function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function dayKey(t){ const d=new Date(t); return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(); }
 function dateLabel(t){ const d=new Date(t); return `${d.getMonth()+1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})`; }
 let toastTimer; function toast(msg,ms=2200){ const el=$('#toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),ms); }
 
@@ -241,7 +269,7 @@ function calc(now){
   if(r.status==='break' && curBreakStart!=null) breakMs += now-curBreakStart;
   const endT = last.type==='end' ? last.t : now;
   r.start=start; r.breakMs=breakMs; r.breaks=breaks; r.totalWork=Math.max(0,endT-start-breakMs);
-  if(r.status==='working'){ r.segStart=lastWorkStart; r.segMs=now-lastWorkStart; r.dueAt=lastWorkStart+S.workMin*60000; r.remain=r.dueAt-now; r.total=S.workMin*60000; }
+  if(r.status==='working'){ r.segStart=lastWorkStart; r.segMs=now-lastWorkStart; r.dueAt=lastWorkStart+S.workMin*60000; if(S.breakAt>lastWorkStart){ r.dueAt=S.breakAt; r.custom=true; } r.remain=r.dueAt-now; r.total=r.dueAt-lastWorkStart; }
   else if(r.status==='break'){ r.segStart=curBreakStart??last.t; r.segMs=now-r.segStart; r.dueAt=r.segStart+S.breakMin*60000; r.remain=r.dueAt-now; r.total=S.breakMin*60000; }
   else { r.endedAt = last.type==='end'? last.t : null; }
   return r;
@@ -269,10 +297,11 @@ function renderStatic(root){
   if(!root.querySelector('[data-id=card]')) root.innerHTML = statusMarkup();
   const acts=root.querySelector('[data-id=actions]');
   const st=S.status;
+  const stopBtn=`<button class="btn stop ${S.alarm?'on':''}" data-act="alarm" title="시술 마감 신호"><span class="circle">${S.alarm?'해제':''}</span><span>${S.alarm?'빨간불 해제':'시술 그만 (빨간불)'}</span></button>`;
   if(!L.ctrl){ acts.className='actions'; acts.innerHTML=`<div class="viewonly">보기 전용 기기 (설정에서 조작 버튼을 켤 수 있어요)</div>`; }
-  else if(st==='off'){ acts.className='actions'; acts.innerHTML=`<button class="btn primary" data-act="start">▶ 근무 시작</button>`; }
-  else if(st==='working'){ acts.className='actions two'; acts.innerHTML=`<button class="btn break" data-act="break">🧘 쉬기 시작</button><button class="btn ghost" data-act="end">퇴근</button>`; }
-  else { acts.className='actions two'; acts.innerHTML=`<button class="btn primary" data-act="resume">💪 다시 일하기</button><button class="btn ghost" data-act="end">퇴근</button>`; }
+  else if(st==='off'){ acts.className='actions two'; acts.innerHTML=`<button class="btn primary" data-act="start">▶ 근무 시작</button>${stopBtn}`; }
+  else if(st==='working'){ acts.className='actions two'; acts.innerHTML=`<button class="btn break" data-act="break">🧘 쉬기 시작</button>${stopBtn}`; }
+  else { acts.className='actions two'; acts.innerHTML=`<button class="btn primary" data-act="resume">💪 다시 일하기</button>${stopBtn}`; }
   renderLive(root);
 }
 
@@ -284,7 +313,7 @@ function renderLive(root){
   let cls='status-card', badge='', timer='--:--', tlabel='', next='', pct=0;
   if(c.status==='working'){
     timer=clock(c.segMs); tlabel='연속 근무 시간'; pct=Math.min(100,c.segMs/c.total*100);
-    if(c.remain>0){ cls+=' working'; badge='근무 중'; next=`다음 휴식까지 <b>${durCeil(c.remain)}</b> · ${hm(c.dueAt)} 예정`; }
+    if(c.remain>0){ cls+=' working'; badge='근무 중'; next=`다음 휴식까지 <b>${durCeil(c.remain)}</b> · ${hm(c.dueAt)} 예정${c.custom?' (조절됨)':''}`; }
     else { const over=-c.remain; cls+= over>10*60000?' over':' due'; badge='🧘 휴식 시간이에요!'; next=`${hm(c.dueAt)} 휴식 예정이었어요 · <b>${durCeil(over)}</b> 지남`; pct=100; }
   } else if(c.status==='break'){
     timer=clock(c.segMs); tlabel='휴식 경과 시간'; pct=Math.min(100,c.segMs/c.total*100);
@@ -296,7 +325,8 @@ function renderLive(root){
     badge='퇴근'; timer=dur(c.totalWork); tlabel='오늘 총 근무'; next=`${hm(c.start)} 출근 · ${c.endedAt?hm(c.endedAt)+' 퇴근':''}`;
   }
   card.className=cls; q('badge').textContent=badge; q('name').textContent=S.name||'원장님';
-  q('timer').textContent=timer; q('tlabel').textContent=tlabel; q('next').innerHTML=next;
+  q('timer').textContent=timer; q('tlabel').textContent=tlabel; const nx=q('next'); nx.innerHTML=next; nx.classList.toggle('clickable', L.ctrl && c.status==='working'); nx.dataset.adjust = (L.ctrl && c.status==='working') ? '1' : '';
+  root.ownerDocument.body.classList.toggle('alarm', !!S.alarm);
   q('bar').style.width=pct+'%';
   q('meta').innerHTML = c.empty ? '' : `<span>출근 <b>${hm(c.start)}</b></span><span>총 근무 <b>${dur(c.totalWork)}</b></span><span>휴식 <b>${c.breaks}회 ${dur(c.breakMs)}</b></span>`;
   return c;
@@ -318,13 +348,28 @@ function act(type){
   else if(type==='break'){ if(S.status!=='working') return; S.events.push({t:now,type:'break'}); S.status='break'; toast('휴식 시작 🧘 스트레칭 하세요'); }
   else if(type==='resume'){ if(S.status!=='break') return; S.events.push({t:now,type:'resume'}); S.status='working'; toast('다시 근무 시작'); }
   else if(type==='end'){ if(S.status==='off') return; if(!confirm('오늘 근무를 마칠까요?')) return; S.events.push({t:now,type:'end'}); S.status='off'; toast('수고하셨습니다 🏁'); }
+  else if(type==='alarm'){ S.alarm=!S.alarm; toast(S.alarm?'🚨 모든 기기에 빨간불! 시술을 더 잡지 마세요':'빨간불을 해제했어요'); }
   else return;
+  if(type==='break'||type==='resume'||type==='start') S.breakAt=0;
   S.updated=now; saveShared(); renderAll();
 }
 document.addEventListener('click', e=>{
   const b=e.target.closest('[data-act]'); if(b){ act(b.dataset.act); return; }
-  const li=e.target.closest('[data-edit]'); if(li && L.ctrl) openEdit(+li.dataset.edit);
+  const li=e.target.closest('[data-edit]'); if(li && L.ctrl) return openEdit(+li.dataset.edit);
+  const nx=e.target.closest('[data-id=next]'); if(nx && nx.dataset.adjust) openLayer('breakSheet');
 });
+$('#breakCancel').onclick=uiBack;
+$('#breakSheet').addEventListener('click', e=>{
+  const b=e.target.closest('[data-bmin]'); if(!b) return; const m=+b.dataset.bmin;
+  if(S.status!=='working') return uiBack();
+  S.breakAt = m? Date.now()+m*60000 : 0; S.updated=Date.now(); saveShared(); renderAll(); uiBack();
+  toast(m? `${m}분 후(${hm(S.breakAt)}) 휴식으로 맞췄어요` : '기본 간격으로 되돌렸어요');
+});
+/* 날짜가 바뀌면 어제 기록은 자동 정리 */
+function rolloverIfNewDay(){
+  if(!S.events.length || dayKey(S.events[0].t)===dayKey(Date.now())) return false;
+  S.events=[]; S.status='off'; S.breakAt=0; S.alarm=false; S.updated=Date.now(); saveShared(); return true;
+}
 
 /* ===== 레이어(뒤로가기) ===== */
 const uiStack=[];
@@ -367,21 +412,18 @@ function openSettings(){
   openLayer('settingsSheet', ()=>{
     $('#sName').value=S.name; $('#sWork').value=S.workMin; $('#sBreak').value=S.breakMin; $('#sWarn').value=S.warnMin;
     setSw('#sCtrl',L.ctrl); setSw('#sNotify',L.notify); setSw('#sSound',L.sound); setSw('#sWake',L.wake);
-    $('#sCode').value=L.code; $('#sFb').value=L.fb; $('#diagOut').hidden=true;
+    $('#diagOut').hidden=true;
   });
 }
 $('#settingsBtn').onclick=openSettings; $('#closeSettings').onclick=uiBack;
-$('#genCode').onclick=()=>{ const a='abcdefghjkmnpqrstuvwxyz23456789'; let s=''; for(let i=0;i<12;i++) s+=a[Math.floor(Math.random()*a.length)]; $('#sCode').value='clinic-'+s; };
 $('#saveSettings').onclick=()=>{
   const name=$('#sName').value.trim()||'원장님', w=Math.max(5,+$('#sWork').value||90), b=Math.max(1,+$('#sBreak').value||10), wm=Math.max(0,+$('#sWarn').value||0);
   if(name!==S.name||w!==S.workMin||b!==S.breakMin||wm!==S.warnMin){ Object.assign(S,{name,workMin:w,breakMin:b,warnMin:wm,updated:Date.now()}); saveShared(); }
-  const code=$('#sCode').value.trim(), fb=$('#sFb').value.trim();
-  const reconnect = code!==L.code || fb!==L.fb;
-  L={...L, ctrl:getSw('#sCtrl'), notify:getSw('#sNotify'), sound:getSw('#sSound'), wake:getSw('#sWake'), code, fb};
+  L={...L, ctrl:getSw('#sCtrl'), notify:getSw('#sNotify'), sound:getSw('#sSound'), wake:getSw('#sWake')};
   saveLocal(); applyWake(); renderAll(); uiBack(); toast('저장했어요');
-  if(reconnect) connectSync();
 };
-$('#resetDayBtn').onclick=()=>{ if(!confirm('오늘 기록을 모두 지울까요? (연결된 기기에도 반영됩니다)')) return; S.events=[]; S.status='off'; S.updated=Date.now(); saveShared(); renderAll(); uiBack(); toast('지웠어요'); };
+$('#endDayBtn').onclick=()=>{ if(S.status==='off') return toast('지금은 근무 중이 아니에요'); uiBack(); act('end'); };
+$('#resetDayBtn').onclick=()=>{ if(!confirm('오늘 기록을 모두 지울까요? (연결된 기기에도 반영됩니다)')) return; S.events=[]; S.status='off'; S.breakAt=0; S.alarm=false; S.updated=Date.now(); saveShared(); renderAll(); uiBack(); toast('지웠어요'); };
 $('#exportBtn').onclick=()=>{ const blob=new Blob([JSON.stringify({shared:S,exported:Date.now()},null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`workrest-${new Date().toISOString().slice(0,10)}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); };
 $('#importBtn').onclick=()=>$('#importFile').click();
 $('#importFile').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; try{ const j=JSON.parse(await f.text()); const r=normalize(j.shared||j); if((r.updated||0)>=(S.updated||0)||confirm('가져오는 데이터가 현재보다 오래됐어요. 덮어쓸까요?')){ S=r; S.updated=Date.now(); saveShared(); renderAll(); toast('가져왔어요'); } }catch{ toast('파일을 읽을 수 없어요'); } };
@@ -407,7 +449,9 @@ function beep(test){
 }
 document.addEventListener('pointerdown',()=>{ try{ if(L.sound){ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume(); } }catch{} },{once:true});
 let alerted = load('wr_alerted',{});
+let prevAlarm=S.alarm;
 function checkAlerts(c){
+  if(S.alarm!==prevAlarm){ prevAlarm=S.alarm; if(S.alarm){ notify(`🚨 ${S.name||'원장님'} 시술 마감`, '원장님이 힘들어요. 더 이상 시술을 잡지 마세요', 'alarm'); beep(); } }
   if(!c || c.remain===undefined) return;
   const key=c.status+':'+c.segStart;
   const fire=(k,title,body)=>{ if(alerted[k]) return; alerted={[k]:1, ...Object.fromEntries(Object.entries(alerted).slice(-10))}; localStorage.setItem('wr_alerted',JSON.stringify(alerted)); notify(title,body,k); beep(); };
@@ -443,7 +487,7 @@ async function openPip(){
     try{
       const pw=await documentPictureInPicture.requestWindow({width:300,height:260});
       for(const ss of document.styleSheets){ try{ const st=pw.document.createElement('style'); st.textContent=[...ss.cssRules].map(r=>r.cssText).join('\n'); pw.document.head.appendChild(st); }catch{} }
-      pw.document.body.className='pip'; pw.document.body.innerHTML='<div id="app"><div id="main"></div></div>';
+      pw.document.body.className='pip'; pw.document.body.innerHTML='<div id="app"><div class="alarm-banner">🚨 원장님이 힘들어요 · 시술 그만</div><div id="main"></div></div>';
       pw.document.addEventListener('click',e=>{ const b=e.target.closest('[data-act]'); if(b) act(b.dataset.act); });
       pipWin=pw; pw.addEventListener('pagehide',()=>{ pipWin=null; });
       renderStatic(pw.document.querySelector('#main'));
@@ -454,7 +498,7 @@ async function openPip(){
   if(document.pictureInPictureEnabled){
     try{
       const v=$('#pipVideo');
-      if(!pipVideoOn){ const cv=document.createElement('canvas'); cv.width=480; cv.height=270; pipCanvas=cv; drawPipCanvas(); v.srcObject=cv.captureStream(2); pipVideoOn=true; }
+      if(!pipVideoOn){ const cv=document.createElement('canvas'); cv.width=480; cv.height=270; pipCanvas=cv; drawPipCanvas(); v.srcObject=cv.captureStream(4); pipVideoOn=true; }
       await v.play(); await v.requestPictureInPicture();
       v.addEventListener('leavepictureinpicture',()=>{ v.pause(); },{once:true});
       toast('떠 있는 창을 열었어요 (보기 전용). 크기는 모서리를 끌어 조절');
@@ -472,6 +516,7 @@ function drawPipCanvas(){
   else if(c.status==='break'){ big=clock(c.segMs); if(c.remain>0){ badge='휴식 중'; sub=`휴식 끝까지 ${durCeil(c.remain)} (${hm(c.dueAt)})`; } else { badge='휴식 끝'; sub=`다시 일할 시간 · ${durCeil(-c.remain)} 지남`; bg='#7c2d12'; fg='#fbbf24'; } }
   else if(c.empty){ badge='근무 전'; big='--:--'; sub='아직 시작 안 함'; }
   else { badge='퇴근'; big=dur(c.totalWork); sub=`${hm(c.start)} 출근 · 총 근무`; }
+  if(S.alarm){ const on=Math.floor(Date.now()/500)%2===0; bg=on?'#b91c1c':'#450a0a'; fg='#fff'; badge='🚨 시술 그만'; sub='원장님이 힘들어요 · 더 잡지 마세요'; }
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillStyle=fg; ctx.font='bold 28px sans-serif'; ctx.fillText(`${S.name||'원장님'} · ${badge}`,W/2,45);
   ctx.fillStyle='#fff'; ctx.font='bold 92px sans-serif'; ctx.fillText(big,W/2,135);
@@ -487,12 +532,6 @@ $('#installBtn').onclick=async()=>{ if(!installEvt) return; installEvt.prompt();
 /* ===== 동기화 (Firestore) ===== */
 let fb=null, unsub=null, syncState='off';
 function setSync(state,msg){ syncState=state; const d=$('#syncDot'); d.className='dot '+(state==='on'?'on':state==='err'?'err':state==='wait'?'wait':''); d.title= state==='on'?'동기화 연결됨':state==='err'?('동기화 오류: '+(msg||'')):state==='wait'?'연결 중…':'동기화 꺼짐(연결 코드 없음)'; }
-function parseFbConfig(txt){
-  if(!txt) return FIREBASE_CONFIG;
-  let s=txt.trim(); const m=s.match(/\{[\s\S]*\}/); if(m) s=m[0];
-  try{ return JSON.parse(s); }catch{}
-  try{ const fixed=s.replace(/\/\/.*$/gm,'').replace(/([{,]\s*)([A-Za-z_]\w*)\s*:/g,'$1"$2":').replace(/'/g,'"').replace(/,\s*}/g,'}'); return JSON.parse(fixed); }catch{ return null; }
-}
 async function loadFb(cfg){
   const appM=await import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-app.js`);
   const fsM=await import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-firestore.js`);
@@ -502,9 +541,8 @@ async function loadFb(cfg){
 }
 async function connectSync(){
   if(unsub){ unsub(); unsub=null; } fb=null;
-  const cfg=parseFbConfig(L.fb); const code=(L.code||'').trim();
-  if(!cfg||!code){ setSync('off'); return; }
-  if(code.length<10){ setSync('err','연결 코드는 10자 이상'); toast('연결 코드는 10자 이상이어야 해요'); return; }
+  const cfg=FIREBASE_CONFIG, code=SPACE_ID;
+  if(!cfg){ setSync('off'); return; }
   setSync('wait');
   try{
     const f=await loadFb(cfg); fb={...f, ref:f.fsM.doc(f.db,'spaces',code)};
@@ -512,7 +550,7 @@ async function connectSync(){
       setSync('on');
       if(!snap.exists()){ if(S.updated) pushShared(); return; }
       const r=normalize(snap.data());
-      if((r.updated||0)>(S.updated||0)){ S=r; saveShared(false); renderAll(); }
+      if((r.updated||0)>(S.updated||0)){ S=r; saveShared(false); if(!rolloverIfNewDay()) renderAll(); else renderAll(); }
       else if((S.updated||0)>(r.updated||0)) pushShared();
     }, err=>{ setSync('err',err.code||err.message); toast('동기화 오류: '+(err.code||err.message)+' (설정 → 동기화 상태 점검)',4000); });
   }catch(e){ setSync('err',e.message); toast('Firebase 연결 실패: 설정을 확인해 주세요',3500); }
@@ -524,21 +562,21 @@ function pushShared(){
 }
 $('#diagBtn').onclick=async()=>{
   const out=$('#diagOut'); out.hidden=false; const lines=[]; const log=s=>{ lines.push(s); out.textContent=lines.join('\n'); };
-  const code=$('#sCode').value.trim(), cfg=parseFbConfig($('#sFb').value.trim());
+  const code=SPACE_ID, cfg=FIREBASE_CONFIG;
   log(`온라인: ${navigator.onLine?'예':'아니오'}`);
-  if(!cfg){ log('❌ Firebase 설정 없음 또는 형식 오류 (firebaseConfig를 붙여넣어 주세요)'); return; }
-  log(`프로젝트: ${cfg.projectId||'(없음)'}`);
-  if(!code||code.length<10){ log('❌ 연결 코드가 없거나 10자 미만'); return; }
+  if(!cfg){ log('❌ 앱에 Firebase 설정이 없어요'); return; }
+  log(`프로젝트: ${cfg.projectId||'(없음)'} · 공간: ${code}`);
   try{ const f=await loadFb(cfg); log('✅ Firebase SDK 로드');
     const ref=f.fsM.doc(f.db,'spaces',code);
     try{ const s=await f.fsM.getDoc(ref); log(`✅ 읽기 OK (문서 ${s.exists()?'있음, 마지막 갱신 '+new Date(s.data().updated||0).toLocaleString():'없음'})`); }catch(e){ log('❌ 읽기 실패: '+(e.code||e.message)+'\n → Firestore 규칙에서 spaces/{id} get/write 허용 필요 (README)'); return; }
     try{ await f.fsM.setDoc(ref,{_ping:Date.now()},{merge:true}); log('✅ 쓰기 OK'); }catch(e){ log('❌ 쓰기 실패: '+(e.code||e.message)); return; }
-    log('모두 정상입니다. 저장을 누르면 연결됩니다.');
+    log('모두 정상입니다. 기기 간 공유가 동작합니다.'); if(syncState!=='on') connectSync();
   }catch(e){ log('❌ SDK 로드/초기화 실패: '+(e.message||e)); }
 };
 
 /* ===== 틱 ===== */
 function tick(){
+  if(rolloverIfNewDay()) renderAll();
   const c=renderLive($('#main'));
   if(pipWin){ try{ renderLive(pipWin.document.querySelector('#main')); }catch{ pipWin=null; } }
   if(pipVideoOn) drawPipCanvas();
@@ -553,7 +591,7 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
 }
 
 /* ===== 시작 ===== */
-renderAll(); applyWake(); connectSync();
+rolloverIfNewDay(); renderAll(); applyWake(); connectSync();
 window.addEventListener('storage',e=>{ if(e.key==='wr_shared'){ S=normalize(load('wr_shared',DEF_SHARED)); renderAll(); } if(e.key==='wr_local'){ L=load('wr_local',DEF_LOCAL); renderAll(); } });
 </script>
 </body>

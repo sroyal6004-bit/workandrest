@@ -23,6 +23,8 @@ body{min-height:100vh;padding:env(safe-area-inset-top) env(safe-area-inset-right
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;-webkit-appearance:none}
 input,select,textarea{font:inherit;color:inherit;-webkit-appearance:none;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
 #app{max-width:var(--maxw);margin:0 auto;padding:12px 14px 24px;display:flex;flex-direction:column;gap:12px;min-height:100vh}
+#main{display:flex;flex-direction:column;gap:10px}
+body.pip #main{gap:5px}
 header{display:flex;align-items:center;gap:8px;padding:4px 2px}
 header h1{font-size:17px;margin:0;flex:1;font-weight:700;display:flex;align-items:center;gap:8px;min-width:0}
 header h1 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -124,15 +126,37 @@ body.mini .actions.two{grid-template-columns:1fr}
   .meta{gap:8px;font-size:12px} .actions.two{grid-template-columns:1fr} .tools .btn{flex-basis:45%}
 }
 /* PiP 창 */
-body.pip{padding:0;overflow:hidden}
-body.pip #app{padding:8px;gap:8px;min-height:0}
-body.pip .card{padding:10px;gap:6px;border-radius:12px}
-body.pip .timer{font-size:clamp(30px,20vw,48px)}
-body.pip .next{font-size:14px} body.pip .meta{display:none} body.pip .name{display:none}
-body.pip .btn{font-size:15px;padding:10px;min-height:42px;border-radius:12px}
-body.pip .btn.stop{font-size:11px;gap:2px} body.pip .btn.stop .circle{width:30px;height:30px;font-size:11px}
-body.pip .alarm-banner{font-size:13px;padding:8px}
-body.pip .actions.two{grid-template-columns:1fr 1fr} body.pip .actions{gap:6px}
+/* 원장님 메모 */
+.notebox{display:none;background:var(--card);border-radius:14px;padding:12px 14px;gap:10px;align-items:flex-start;text-align:left}
+.notebox.show{display:flex}
+.notebox .ic{font-size:20px;flex:none}
+.notebox .txt{flex:1;font-size:16px;line-height:1.45;white-space:pre-wrap;word-break:break-word;font-weight:600}
+.notebox .txt.empty{color:var(--muted);font-weight:400}
+.notebox .at{font-size:12px;color:var(--muted);flex:none;margin-top:3px}
+.notebox.clickable{cursor:pointer}
+/* PiP 창: 창 크기에 따라 글자가 함께 커지고 작아짐 */
+body.pip{padding:0;overflow:hidden;min-height:100vh;display:flex;flex-direction:column}
+body.pip #app{padding:6px;gap:5px;min-height:100vh;justify-content:center}
+body.pip .card{padding:clamp(6px,2vw,12px);gap:4px;border-radius:12px}
+body.pip .badge{font-size:clamp(11px,3.6vw,15px);padding:3px 10px}
+body.pip .timer{font-size:clamp(20px,9vw,40px);letter-spacing:0}
+body.pip .timer-label{font-size:clamp(10px,3vw,12px);margin-top:-2px}
+body.pip .next{font-size:clamp(16px,7vw,34px);font-weight:800;line-height:1.25}
+body.pip .meta{display:none} body.pip .name{display:none}
+body.pip .btn{font-size:clamp(13px,4.5vw,17px);padding:8px;min-height:40px;border-radius:12px}
+body.pip .actions.two{grid-template-columns:1fr 1fr} body.pip .actions{gap:5px}
+body.pip .btn.stop{font-size:clamp(10px,3vw,12px);gap:2px} body.pip .btn.stop .circle{width:28px;height:28px;font-size:10px}
+body.pip .alarm-banner{font-size:clamp(12px,4vw,16px);padding:6px}
+body.pip .notebox{padding:8px 10px;border-radius:10px} body.pip .notebox .txt{font-size:clamp(12px,4.5vw,18px)} body.pip .notebox .at{display:none} body.pip .notebox .ic{font-size:16px}
+.pip-tools{display:flex;gap:4px;justify-content:center;align-items:center;padding:2px 0}
+.pip-tools button{background:var(--card);color:var(--muted);border-radius:8px;min-width:34px;height:28px;font-size:13px;font-weight:700;padding:0 8px}
+.pip-tools span{font-size:11px;color:var(--muted);margin:0 2px}
+/* 뒤로가기 → 떠 있는 창 안내 */
+.pip-prompt{position:fixed;inset:0;background:rgba(15,23,42,.92);z-index:200;display:none;place-items:center;padding:20px}
+.pip-prompt.show{display:grid}
+.pip-prompt .box{background:var(--card);border-radius:20px;padding:22px;max-width:360px;width:100%;text-align:center}
+.pip-prompt h3{margin:0 0 8px;font-size:19px} .pip-prompt p{margin:0 0 16px;color:var(--muted);font-size:14px;line-height:1.5}
+.pip-prompt .btn{width:100%;margin-top:8px}
 </style>
 </head>
 <body>
@@ -159,7 +183,26 @@ body.pip .actions.two{grid-template-columns:1fr 1fr} body.pip .actions{gap:6px}
   </section>
 </div>
 
+<div class="pip-prompt" id="pipPrompt">
+  <div class="box">
+    <h3>떠 있는 창으로 볼까요?</h3>
+    <p>앱을 닫는 대신 작은 창으로 띄워 다른 앱 위에서도 시간을 볼 수 있어요.</p>
+    <button class="btn primary" id="pipPromptOpen">⧉ 떠 있는 창 열기</button>
+    <button class="btn ghost" id="pipPromptStay">그냥 계속 보기</button>
+  </div>
+</div>
+
 <div class="backdrop" id="backdrop"></div>
+
+<!-- 원장님 메모 -->
+<div class="sheet" id="noteSheet">
+  <h3>원장님 메모</h3>
+  <p class="hint">직원들에게 알릴 말을 적어 두세요. 모든 기기에 바로 표시됩니다.</p>
+  <textarea id="noteText" style="min-height:110px;font-family:inherit;font-size:16px" maxlength="300" placeholder="예: 3시 이후 예약은 상담만 받아주세요"></textarea>
+  <button class="btn primary" id="noteSave">저장</button>
+  <button class="btn ghost" id="noteClear">메모 지우기</button>
+  <button class="btn ghost" id="noteCancel">취소</button>
+</div>
 
 <!-- 설정 -->
 <div class="sheet" id="settingsSheet">
@@ -175,6 +218,8 @@ body.pip .actions.two{grid-template-columns:1fr 1fr} body.pip .actions{gap:6px}
   <div class="row"><label>휴식 알림<small>휴식 시간이 되면 알림 표시</small></label><button class="switch" id="sNotify"></button></div>
   <div class="row"><label>알림 소리<small>짧은 알림음</small></label><button class="switch" id="sSound"></button></div>
   <div class="row"><label>화면 항상 켜기<small>태블릿을 안내판처럼 둘 때</small></label><button class="switch" id="sWake"></button></div>
+  <div class="row"><label>떠 있는 창 모양<small>태블릿(영상형 PiP)에서 창의 가로세로 비율. 다음에 열 때 적용</small></label>
+    <select id="sPipShape" style="width:120px"><option value="wide">가로형</option><option value="square">정방형</option><option value="tall">세로형</option></select></div>
 
   <h4>기기 간 연결</h4>
   <p class="hint">이 앱을 연 모든 기기는 자동으로 같은 상태를 공유합니다.</p>
@@ -231,8 +276,8 @@ const FIRESTORE_DB = 'default'; /* Firebase 콘솔에 만든 Firestore 데이터
 
 /* ===== 상태 ===== */
 const SPACE_ID = 'workandrest-clinic-main'; /* 병원 공용 공간 ID (Firestore 문서 이름, 10자 이상) */
-const DEF_SHARED = { name:'원장님', workMin:90, breakMin:10, warnMin:5, status:'off', events:[], alarm:false, breakAt:0, updated:0 };
-const DEF_LOCAL  = { ctrl:true, notify:false, sound:false, wake:false };
+const DEF_SHARED = { name:'원장님', workMin:90, breakMin:10, warnMin:5, status:'off', events:[], alarm:false, breakAt:0, note:'', noteAt:0, updated:0 };
+const DEF_LOCAL  = { ctrl:true, notify:false, sound:false, wake:false, pipShape:'wide', pipW:320, pipH:300 };
 let S = load('wr_shared', DEF_SHARED);
 let L = load('wr_local', DEF_LOCAL);
 const IS_MINI = new URLSearchParams(location.search).get('mini')==='1';
@@ -241,7 +286,7 @@ if(IS_MINI) document.body.classList.add('mini');
 function load(k, def){ try{ const v=JSON.parse(localStorage.getItem(k)||'null'); return v? Object.assign({}, def, v) : {...def}; }catch{ return {...def}; } }
 function saveShared(push=true){ localStorage.setItem('wr_shared', JSON.stringify(S)); if(push) pushShared(); }
 function saveLocal(){ localStorage.setItem('wr_local', JSON.stringify(L)); }
-function normalize(r){ const o=Object.assign({}, DEF_SHARED, r||{}); o.events=Array.isArray(o.events)?o.events.filter(e=>e&&typeof e.t==='number'&&e.type).sort((a,b)=>a.t-b.t):[]; o.workMin=+o.workMin||90; o.breakMin=+o.breakMin||10; o.warnMin=Math.max(0,+o.warnMin||0); if(!['off','working','break'].includes(o.status)) o.status='off'; o.alarm=!!o.alarm; o.breakAt=+o.breakAt||0; return o; }
+function normalize(r){ const o=Object.assign({}, DEF_SHARED, r||{}); o.events=Array.isArray(o.events)?o.events.filter(e=>e&&typeof e.t==='number'&&e.type).sort((a,b)=>a.t-b.t):[]; o.workMin=+o.workMin||90; o.breakMin=+o.breakMin||10; o.warnMin=Math.max(0,+o.warnMin||0); if(!['off','working','break'].includes(o.status)) o.status='off'; o.alarm=!!o.alarm; o.breakAt=+o.breakAt||0; o.note=typeof o.note==='string'?o.note.slice(0,300):''; o.noteAt=+o.noteAt||0; return o; }
 S = normalize(S);
 
 /* ===== 유틸 ===== */
@@ -290,7 +335,8 @@ function statusMarkup(){
     <div class="bar"><i data-id="bar" style="width:0%"></i></div>
     <div class="meta" data-id="meta"></div>
   </section>
-  <div class="actions" data-id="actions"></div>`;
+  <div class="actions" data-id="actions"></div>
+  <div class="notebox" data-id="note"><span class="ic">💬</span><span class="txt"></span><span class="at"></span></div>`;
 }
 
 function renderStatic(root){
@@ -328,6 +374,10 @@ function renderLive(root){
   card.className=cls; q('badge').textContent=badge; q('name').textContent=S.name||'원장님';
   q('timer').textContent=timer; q('tlabel').textContent=tlabel; const nx=q('next'); nx.innerHTML=next; nx.classList.toggle('clickable', L.ctrl && c.status==='working'); nx.dataset.adjust = (L.ctrl && c.status==='working') ? '1' : '';
   root.ownerDocument.body.classList.toggle('alarm', !!S.alarm);
+  const nb=q('note'); const hasNote=!!(S.note&&S.note.trim());
+  nb.classList.toggle('show', hasNote || L.ctrl); nb.classList.toggle('clickable', L.ctrl); nb.dataset.note = L.ctrl?'1':'';
+  const tx=nb.querySelector('.txt'); tx.textContent = hasNote? S.note : '메모를 남기려면 누르세요'; tx.classList.toggle('empty',!hasNote);
+  nb.querySelector('.at').textContent = hasNote && S.noteAt ? hm(S.noteAt) : '';
   q('bar').style.width=pct+'%';
   q('meta').innerHTML = c.empty ? '' : `<span>출근 <b>${hm(c.start)}</b></span><span>총 근무 <b>${dur(c.totalWork)}</b></span><span>휴식 <b>${c.breaks}회 ${dur(c.breakMs)}</b></span>`;
   return c;
@@ -357,8 +407,14 @@ function act(type){
 document.addEventListener('click', e=>{
   const b=e.target.closest('[data-act]'); if(b){ act(b.dataset.act); return; }
   const li=e.target.closest('[data-edit]'); if(li && L.ctrl) return openEdit(+li.dataset.edit);
-  const nx=e.target.closest('[data-id=next]'); if(nx && nx.dataset.adjust) openLayer('breakSheet');
+  const nx=e.target.closest('[data-id=next]'); if(nx && nx.dataset.adjust) return openLayer('breakSheet');
+  const nb=e.target.closest('[data-id=note]'); if(nb && nb.dataset.note) openNote();
 });
+function openNote(){ openLayer('noteSheet', ()=>{ $('#noteText').value=S.note||''; }); setTimeout(()=>$('#noteText').focus(),50); }
+function setNote(t){ S.note=t.trim().slice(0,300); S.noteAt=S.note?Date.now():0; prevNote=S.note; S.updated=Date.now(); saveShared(); renderAll(); }
+$('#noteSave').onclick=()=>{ setNote($('#noteText').value); uiBack(); toast(S.note?'메모를 모든 기기에 표시했어요':'메모를 지웠어요'); };
+$('#noteClear').onclick=()=>{ setNote(''); uiBack(); toast('메모를 지웠어요'); };
+$('#noteCancel').onclick=uiBack;
 $('#breakCancel').onclick=uiBack;
 $('#breakSheet').addEventListener('click', e=>{
   const b=e.target.closest('[data-bmin]'); if(!b) return; const m=+b.dataset.bmin;
@@ -379,7 +435,20 @@ function showLayer(tag){ $('#backdrop').classList.add('show'); $('#'+tag).classL
 function hideLayer(tag){ $('#'+tag).classList.remove('show'); if(!uiStack.length) $('#backdrop').classList.remove('show'); }
 function openLayer(tag,prep){ if(prep) prep(); showLayer(tag); uiStack.push({tag,pushed:pushHist(tag)}); }
 function uiBack(){ const t=uiStack[uiStack.length-1]; if(!t) return; if(t.pushed) history.back(); else { uiStack.pop(); hideLayer(t.tag); } }
-window.addEventListener('popstate',()=>{ if(!uiStack.length) return; hideLayer(uiStack.pop().tag); });
+/* 홈에서 뒤로가기: 앱 종료 대신 떠 있는 창 */
+let homeGuard=false;
+function armHomeGuard(){ try{ history.pushState({home:1},''); homeGuard=true; }catch{ homeGuard=false; } }
+window.addEventListener('popstate',()=>{
+  if(uiStack.length){ hideLayer(uiStack.pop().tag); return; }
+  if(!homeGuard) return;
+  armHomeGuard();
+  if(pipWin || document.pictureInPictureElement) return;
+  Promise.race([openPip({quiet:true}), new Promise(r=>setTimeout(()=>r('timeout'),1200))])
+    .then(ok=>{ if(ok!==true && !pipWin && !document.pictureInPictureElement) $('#pipPrompt').classList.add('show'); });
+});
+$('#pipPromptOpen').onclick=()=>{ $('#pipPrompt').classList.remove('show'); if(!pipWin && !document.pictureInPictureElement) openPip(); };
+$('#pipPromptStay').onclick=()=>$('#pipPrompt').classList.remove('show');
+try{ navigator.mediaSession?.setActionHandler?.('enterpictureinpicture', ()=>openPip({quiet:true})); }catch{}
 $('#backdrop').addEventListener('click', uiBack);
 
 /* ===== 시간 수정 ===== */
@@ -412,7 +481,7 @@ document.querySelectorAll('.switch').forEach(b=>b.addEventListener('click', asyn
 function openSettings(){
   openLayer('settingsSheet', ()=>{
     $('#sName').value=S.name; $('#sWork').value=S.workMin; $('#sBreak').value=S.breakMin; $('#sWarn').value=S.warnMin;
-    setSw('#sCtrl',L.ctrl); setSw('#sNotify',L.notify); setSw('#sSound',L.sound); setSw('#sWake',L.wake);
+    setSw('#sCtrl',L.ctrl); setSw('#sNotify',L.notify); setSw('#sSound',L.sound); setSw('#sWake',L.wake); $('#sPipShape').value=L.pipShape||'wide';
     $('#diagOut').hidden=true;
   });
 }
@@ -420,7 +489,8 @@ $('#settingsBtn').onclick=openSettings; $('#closeSettings').onclick=uiBack;
 $('#saveSettings').onclick=()=>{
   const name=$('#sName').value.trim()||'원장님', w=Math.max(5,+$('#sWork').value||90), b=Math.max(1,+$('#sBreak').value||10), wm=Math.max(0,+$('#sWarn').value||0);
   if(name!==S.name||w!==S.workMin||b!==S.breakMin||wm!==S.warnMin){ Object.assign(S,{name,workMin:w,breakMin:b,warnMin:wm,updated:Date.now()}); saveShared(); }
-  L={...L, ctrl:getSw('#sCtrl'), notify:getSw('#sNotify'), sound:getSw('#sSound'), wake:getSw('#sWake')};
+  const shape=$('#sPipShape').value; if(shape!==L.pipShape && pipVideoOn){ pipVideoOn=false; pipCanvas=null; try{ $('#pipVideo').srcObject=null; }catch{} }
+  L={...L, ctrl:getSw('#sCtrl'), notify:getSw('#sNotify'), sound:getSw('#sSound'), wake:getSw('#sWake'), pipShape:shape};
   saveLocal(); applyWake(); renderAll(); uiBack(); toast('저장했어요');
 };
 $('#endDayBtn').onclick=()=>{ if(S.status==='off') return toast('지금은 근무 중이 아니에요'); uiBack(); act('end'); };
@@ -450,8 +520,9 @@ function beep(test){
 }
 document.addEventListener('pointerdown',()=>{ try{ if(L.sound){ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume(); } }catch{} },{once:true});
 let alerted = load('wr_alerted',{});
-let prevAlarm=S.alarm;
+let prevAlarm=S.alarm, prevNote=S.note;
 function checkAlerts(c){
+  if(S.note!==prevNote){ prevNote=S.note; if(S.note) notify(`💬 ${S.name||'원장님'} 메모`, S.note, 'note'); }
   if(S.alarm!==prevAlarm){ prevAlarm=S.alarm; if(S.alarm){ notify(`🚨 ${S.name||'원장님'} 시술 마감`, '원장님이 힘들어요. 더 이상 시술을 잡지 마세요', 'alarm'); beep(); } }
   if(!c || c.remain===undefined) return;
   const key=c.status+':'+c.segStart;
@@ -482,33 +553,44 @@ $('#popBtn').onclick=()=>{
   if(!win) toast('팝업이 막혔어요. 브라우저에서 팝업을 허용해 주세요'); else toast('작은 창을 CRM 옆에 두세요. 창 크기와 위치는 자유롭게 조절 가능');
 };
 let pipWin=null, pipVideoOn=false;
-async function openPip(){
-  if(pipWin){ try{ pipWin.focus(); }catch{} return; }
+async function openPip(opt={}){
+  const quiet=!!opt.quiet;
+  if(pipWin){ try{ pipWin.focus(); }catch{} return true; }
   if('documentPictureInPicture' in window){
     try{
-      const pw=await documentPictureInPicture.requestWindow({width:300,height:260});
+      const pw=await documentPictureInPicture.requestWindow({width:L.pipW||320,height:L.pipH||300});
       for(const ss of document.styleSheets){ try{ const st=pw.document.createElement('style'); st.textContent=[...ss.cssRules].map(r=>r.cssText).join('\n'); pw.document.head.appendChild(st); }catch{} }
-      pw.document.body.className='pip'; pw.document.body.innerHTML='<div id="app"><div class="alarm-banner">🚨 원장님이 힘들어요 · 시술 그만</div><div id="main"></div></div>';
-      pw.document.addEventListener('click',e=>{ const b=e.target.closest('[data-act]'); if(b) act(b.dataset.act); });
-      pipWin=pw; pw.addEventListener('pagehide',()=>{ pipWin=null; });
+      pw.document.body.className='pip';
+      pw.document.body.innerHTML='<div id="app"><div class="alarm-banner">🚨 원장님이 힘들어요 · 시술 그만</div><div id="main"></div>'+
+        '<div class="pip-tools"><span>좌우</span><button data-pip="w-" title="좁게">−</button><button data-pip="w+" title="넓게">+</button><span>상하</span><button data-pip="h-" title="낮게">−</button><button data-pip="h+" title="높게">+</button></div></div>';
+      pw.document.addEventListener('click',e=>{
+        const b=e.target.closest('[data-act]'); if(b) return act(b.dataset.act);
+        const r=e.target.closest('[data-pip]'); if(r){ const k=r.dataset.pip; const d=40; try{ pw.resizeBy(k==='w+'?d:k==='w-'?-d:0, k==='h+'?d:k==='h-'?-d:0); }catch{} return; }
+        const nb=e.target.closest('[data-id=note]'); if(nb && L.ctrl){ try{ window.focus(); }catch{} openNote(); return; }
+        const nx=e.target.closest('[data-id=next]'); if(nx && nx.dataset.adjust){ try{ window.focus(); }catch{} openLayer('breakSheet'); }
+      });
+      pw.addEventListener('resize',()=>{ L.pipW=pw.innerWidth; L.pipH=pw.innerHeight; saveLocal(); });
+      pipWin=pw; pw.addEventListener('pagehide',()=>{ pipWin=null; }); $('#pipPrompt').classList.remove('show');
       renderStatic(pw.document.querySelector('#main'));
-      toast('떠 있는 창을 열었어요. 다른 앱 위에도 계속 보여요');
-      return;
-    }catch(e){ if(e.name!=='NotAllowedError') console.warn(e); }
+      if(!quiet) toast('떠 있는 창을 열었어요. 창 가장자리를 끌거나 아래 −/+ 로 크기 조절');
+      return true;
+    }catch(e){ if(e.name!=='NotAllowedError') console.warn(e); if(e.name==='NotAllowedError') return false; }
   }
   if(document.pictureInPictureEnabled){
     try{
       const v=$('#pipVideo');
-      if(!pipVideoOn){ const cv=document.createElement('canvas'); cv.width=480; cv.height=270; pipCanvas=cv; drawPipCanvas(); v.srcObject=cv.captureStream(4); pipVideoOn=true; }
+      if(!pipVideoOn){ const size={wide:[480,270],square:[400,400],tall:[300,420]}[L.pipShape]||[480,270]; const cv=document.createElement('canvas'); cv.width=size[0]; cv.height=size[1]; pipCanvas=cv; drawPipCanvas(); v.srcObject=cv.captureStream(4); pipVideoOn=true; }
       await v.play(); await v.requestPictureInPicture();
       v.addEventListener('leavepictureinpicture',()=>{ v.pause(); },{once:true});
-      toast('떠 있는 창을 열었어요 (보기 전용). 크기는 모서리를 끌어 조절');
-      return;
-    }catch(e){ console.warn(e); toast('떠 있는 창을 열 수 없어요: '+(e.message||e.name)); return; }
+      if(!quiet) toast('떠 있는 창을 열었어요 (보기 전용). 두 손가락으로 크기 조절, 모양은 설정에서');
+      return true;
+    }catch(e){ console.warn(e); if(!quiet) toast('떠 있는 창을 열 수 없어요: '+(e.message||e.name)); return false; }
   }
-  toast('이 브라우저는 떠 있는 창을 지원하지 않아요. ‘옆에 작은 창’ 또는 화면 분할을 이용해 주세요',3500);
+  if(!quiet) toast('이 브라우저는 떠 있는 창을 지원하지 않아요. ‘옆에 작은 창’ 또는 화면 분할을 이용해 주세요',3500);
+  return false;
 }
 let pipCanvas=null;
+function fitText(ctx, text, maxW){ if(ctx.measureText(text).width<=maxW) return text; while(text.length>1 && ctx.measureText(text+'…').width>maxW) text=text.slice(0,-1); return text+'…'; }
 function drawPipCanvas(){
   if(!pipCanvas) return; const ctx=pipCanvas.getContext('2d'), W=pipCanvas.width, H=pipCanvas.height; const c=calc(Date.now());
   const theme={working:['#14532d','#22c55e'],break:['#312e81','#a78bfa'],off:['#1e293b','#94a3b8']};
@@ -518,12 +600,16 @@ function drawPipCanvas(){
   else if(c.empty){ badge='근무 전'; big='--:--'; sub='아직 시작 안 함'; }
   else { badge='퇴근'; big=dur(c.totalWork); sub=`${hm(c.start)} 출근 · 총 근무`; }
   if(S.alarm){ const on=Math.floor(Date.now()/500)%2===0; bg=on?'#b91c1c':'#450a0a'; fg='#fff'; badge='🚨 시술 그만'; sub='원장님이 힘들어요 · 더 잡지 마세요'; }
+  const u=Math.min(W,H)/270;
+  const note=(S.note||'').trim(); const rows = note? 4 : 3; const rowH=H/(rows+0.6);
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillStyle=fg; ctx.font='bold 28px sans-serif'; ctx.fillText(`${S.name||'원장님'} · ${badge}`,W/2,45);
-  ctx.fillStyle='#fff'; ctx.font='bold 92px sans-serif'; ctx.fillText(big,W/2,135);
-  ctx.fillStyle='#e2e8f0'; ctx.font='26px sans-serif'; ctx.fillText(sub,W/2,225);
+  let y=rowH*0.8;
+  ctx.fillStyle=fg; ctx.font=`bold ${Math.round(24*u)}px sans-serif`; ctx.fillText(fitText(ctx,`${S.name||'원장님'} · ${badge}`,W*0.94),W/2,y); y+=rowH;
+  ctx.fillStyle='#fff'; ctx.font=`bold ${Math.round(58*u)}px sans-serif`; ctx.fillText(big,W/2,y); y+=rowH;
+  ctx.fillStyle='#fef3c7'; ctx.font=`bold ${Math.round(34*u)}px sans-serif`; ctx.fillText(fitText(ctx,sub,W*0.94),W/2,y); y+=rowH;
+  if(note){ ctx.fillStyle='#e2e8f0'; ctx.font=`${Math.round(24*u)}px sans-serif`; ctx.fillText(fitText(ctx,'💬 '+note.replace(/\s+/g,' '),W*0.94),W/2,y); }
 }
-$('#pipBtn').onclick=openPip; $('#pipBtn2').onclick=openPip;
+$('#pipBtn').onclick=()=>openPip(); $('#pipBtn2').onclick=()=>openPip();
 
 /* ===== 설치 ===== */
 let installEvt=null;
@@ -592,7 +678,7 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
 }
 
 /* ===== 시작 ===== */
-rolloverIfNewDay(); renderAll(); applyWake(); connectSync();
+rolloverIfNewDay(); renderAll(); applyWake(); connectSync(); armHomeGuard();
 window.addEventListener('storage',e=>{ if(e.key==='wr_shared'){ S=normalize(load('wr_shared',DEF_SHARED)); renderAll(); } if(e.key==='wr_local'){ L=load('wr_local',DEF_LOCAL); renderAll(); } });
 </script>
 </body>

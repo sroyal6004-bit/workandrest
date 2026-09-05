@@ -1,14 +1,14 @@
 name: Deploy to GitHub Pages
 
+# 이 브랜치에 푸시되면 배포 파일만 gh-pages 브랜치로 올립니다.
+# GitHub Pages는 Settings → Pages 에서 gh-pages 브랜치를 소스로 사용합니다.
 on:
   push:
     branches: [claude/director-work-time-sharing-o8sxov, main]
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -17,21 +17,17 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Enable and configure Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - name: Collect site files
         run: |
           mkdir -p _site
           cp index.html manifest.json sw.js icon-192.png icon-512.png _site/
-      - uses: actions/upload-pages-artifact@v3
+          touch _site/.nojekyll
+      - name: Push to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: _site
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          publish_branch: gh-pages
+          force_orphan: true

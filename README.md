@@ -20,9 +20,9 @@
 
 ## 1. 올리기 (GitHub Pages)
 
-브랜치에 푸시하면 `.github/workflows/pages.yml` 이 자동으로 GitHub Pages를 켜고 배포합니다.
+브랜치에 푸시하면 `.github/workflows/pages.yml` 이 배포 파일을 `gh-pages` 브랜치로 올리고, GitHub Pages가 그 브랜치를 서비스합니다.
 
-1. 저장소 **Actions** 탭에서 "Deploy to GitHub Pages" 가 초록색이면 완료
+1. 저장소 **Settings → Pages** 에서 Source가 `gh-pages` / `(root)` 인지 확인 (자동으로 잡히지 않았다면 선택 후 Save)
 2. `https://sroyal6004-bit.github.io/workandrest/` 주소로 접속
 3. 크롬 주소창 오른쪽 **설치** 아이콘(또는 앱 안의 "홈 화면에 설치" 버튼)으로 설치
 

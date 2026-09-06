@@ -139,7 +139,11 @@ body.mini .actions.two{grid-template-columns:1fr}
 .notebox .at{font-size:12px;color:var(--muted);flex:none;margin-top:3px}
 .notebox.clickable{cursor:pointer}
 /* PiP 창: 창 크기에 따라 글자가 함께 커지고 작아짐 */
-body.pip{padding:0;overflow:hidden;min-height:100vh;display:flex;flex-direction:column}
+body.pip{padding:0;overflow:hidden;min-height:100vh;display:flex;flex-direction:column;transition:background .5s linear}
+body.pip.graded{background:var(--pipbg,var(--bg))}
+body.pip.graded .card{background:rgba(0,0,0,.28);border-color:rgba(255,255,255,.35)}
+body.pip.graded .badge{background:rgba(0,0,0,.25);color:#fff}
+body.pip.graded .timer-label,body.pip.graded .next{color:#fff}
 body.pip #app{padding:6px;gap:5px;min-height:100vh;justify-content:center}
 body.pip .card{padding:clamp(6px,2vw,12px);gap:4px;border-radius:12px}
 body.pip .badge{font-size:clamp(11px,3.6vw,15px);padding:3px 10px}
@@ -331,6 +335,14 @@ function dur(ms){ ms=Math.max(0,ms); const m=Math.round(ms/60000), h=Math.floor(
 function durCeil(ms){ return dur(Math.ceil(Math.max(0,ms)/60000)*60000); }
 function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function dayKey(t){ const d=new Date(t); return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(); }
+/* 진행률 0→1: 밝은 초록 → 주황 → 빨강 */
+function progressColor(p){
+  p=Math.max(0,Math.min(1,p||0));
+  const K=[[140,70,38],[35,92,44],[0,80,42]];
+  const t=p<0.5? p/0.5 : (p-0.5)/0.5; const [a,b]=p<0.5? [K[0],K[1]] : [K[1],K[2]];
+  const m=(x,y)=>Math.round(x+(y-x)*t);
+  return `hsl(${m(a[0],b[0])} ${m(a[1],b[1])}% ${m(a[2],b[2])}%)`;
+}
 function dateLabel(t){ const d=new Date(t); return `${d.getMonth()+1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})`; }
 let toastTimer; function toast(msg,ms=2200){ const el=$('#toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),ms); }
 
@@ -413,6 +425,10 @@ function renderLive(root){
   const tx=nb.querySelector('.txt'); tx.textContent = hasNote? S.note : '메모를 남기려면 누르세요'; tx.classList.toggle('empty',!hasNote);
   nb.querySelector('.at').textContent = hasNote && S.noteAt ? hm(S.noteAt) : '';
   q('bar').style.width=pct+'%';
+  const body=root.ownerDocument.body; const grade = c.status==='working' && c.remain>0;
+  const col = grade ? progressColor(c.segMs/c.total) : '';
+  q('bar').style.background = col; card.style.borderColor = col;
+  if(body.classList.contains('pip')){ body.classList.toggle('graded', grade); if(grade) body.style.setProperty('--pipbg', col); else body.style.removeProperty('--pipbg'); }
   q('meta').innerHTML = c.empty ? '' : `<span>출근 <b>${hm(c.start)}</b></span><span>총 근무 <b>${dur(c.totalWork)}</b></span><span>휴식 <b>${c.breaks}회 ${dur(c.breakMs)}</b></span>`;
   return c;
 }
@@ -666,7 +682,7 @@ function drawPipCanvas(){
   if(!pipCanvas) return; const ctx=pipCanvas.getContext('2d'), W=pipCanvas.width, H=pipCanvas.height; const now=Date.now(); const c=calc(now);
   const theme={working:['#14532d','#22c55e'],break:['#312e81','#a78bfa'],off:['#1e293b','#94a3b8']};
   let [bg,fg]=theme[c.status]||theme.off; let badge, big, sub;
-  if(c.status==='working'){ big=clock(c.segMs); if(S.orangeMin>0 && c.segMs>=S.orangeMin*60000){ bg='#7c3a12'; fg='#fde68a'; } if(c.remain>0){ badge='근무 중'; sub=`다음 휴식까지 ${durCeil(c.remain)} (${hm(c.dueAt)})`; } else { badge='휴식 시간이에요!'; sub=`${durCeil(-c.remain)} 지남`; bg='#7c2d12'; fg='#fbbf24'; } }
+  if(c.status==='working'){ big=clock(c.segMs); if(c.remain>0){ badge='근무 중'; sub=`다음 휴식까지 ${durCeil(c.remain)} (${hm(c.dueAt)})`; bg=progressColor(c.segMs/c.total); fg='#fff'; } else { badge='휴식 시간이에요!'; sub=`${durCeil(-c.remain)} 지남`; bg=Math.floor(now/1000)%2? '#b91c1c':'#7f1d1d'; fg='#fde68a'; } }
   else if(c.status==='break'){ big=clock(c.segMs); if(c.remain>0){ badge='휴식 중'; sub=`휴식 끝까지 ${durCeil(c.remain)} (${hm(c.dueAt)})`; } else { badge='휴식 끝'; sub=`다시 일할 시간 · ${durCeil(-c.remain)} 지남`; bg='#7c2d12'; fg='#fbbf24'; } }
   else if(c.empty){ badge='근무 전'; big='--:--'; sub='아직 시작 안 함'; }
   else { badge='퇴근'; big=dur(c.totalWork); sub=`${hm(c.start)} 출근 · 총 근무`; }

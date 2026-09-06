@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>원장님 근무·휴식</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+:root{
+  --bg:#0f172a; --card:#1e293b; --card2:#2b3950; --line:#3b4a63; --text:#f1f5f9; --muted:#9fb0c8;
+  --accent:#38bdf8; --green:#22c55e; --orange:#f59e0b; --red:#ef4444; --purple:#a78bfa;
+  --maxw:520px; --radius:18px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR","Malgun Gothic",sans-serif}
+body{min-height:100vh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;-webkit-appearance:none}
+input,select,textarea{font:inherit;color:inherit;-webkit-appearance:none;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+#app{max-width:var(--maxw);margin:0 auto;padding:12px 14px 24px;display:flex;flex-direction:column;gap:12px;min-height:100vh}
+#main{display:flex;flex-direction:column;gap:10px}
+body.pip #main{gap:5px}
+header{display:flex;align-items:center;gap:8px;padding:4px 2px}
+header h1{font-size:17px;margin:0;flex:1;font-weight:700;display:flex;align-items:center;gap:8px;min-width:0}
+header h1 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;background:#64748b;display:inline-block;flex:none}
+.dot.on{background:var(--green)} .dot.err{background:var(--red)} .dot.wait{background:var(--orange)}
+.icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:18px;background:var(--card);flex:none}
+.card{background:var(--card);border-radius:var(--radius);padding:18px}
+.status-card{text-align:center;display:flex;flex-direction:column;gap:10px;border:2px solid transparent;transition:border-color .3s, background .3s}
+.status-card.working{border-color:rgba(34,197,94,.55)}
+.status-card.break{border-color:rgba(167,139,250,.65)}
+.status-card.due{border-color:var(--orange);background:#3a2b12;animation:pulse 1.6s infinite}
+.status-card.over{border-color:var(--red);background:#3b1a1a;animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}50%{box-shadow:0 0 0 8px rgba(245,158,11,.18)}}
+.badge{display:inline-block;padding:6px 14px;border-radius:999px;font-weight:700;font-size:14px;background:var(--card2);color:var(--muted)}
+.working .badge{background:rgba(34,197,94,.18);color:var(--green)}
+.break .badge{background:rgba(167,139,250,.2);color:var(--purple)}
+.due .badge{background:rgba(245,158,11,.25);color:#fcd34d}
+.over .badge{background:rgba(239,68,68,.25);color:#fca5a5}
+.name{font-size:15px;color:var(--muted)}
+.timer{font-size:clamp(44px,14vw,72px);font-weight:800;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1.05}
+.timer-label{font-size:13px;color:var(--muted);margin-top:-4px}
+.next{font-size:17px;font-weight:600;line-height:1.4}
+.bar{height:8px;background:var(--bg);border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--green);border-radius:6px;transition:width 1s linear}
+.break .bar i{background:var(--purple)} .due .bar i,.over .bar i{background:var(--orange)}
+.meta{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:13px}
+.meta b{color:var(--text);font-weight:600}
+.actions{display:grid;gap:10px;grid-template-columns:1fr}
+.actions.two{grid-template-columns:1fr 1fr}
+.btn{padding:18px 14px;border-radius:16px;font-size:19px;font-weight:700;background:var(--card2);min-height:56px}
+.btn.primary{background:var(--green);color:#052e16}
+.btn.break{background:var(--purple);color:#1e1b4b}
+.btn.warn{background:var(--orange);color:#3b1d05}
+.btn.ghost{background:var(--card);color:var(--muted);font-size:15px;padding:12px}
+.btn.danger{background:rgba(239,68,68,.15);color:#fca5a5}
+.btn.stop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:var(--card);color:var(--muted);font-size:13px;font-weight:600;padding:10px}
+.btn.stop .circle{width:44px;height:44px;border-radius:50%;background:var(--red);box-shadow:0 0 0 4px rgba(239,68,68,.25), inset 0 -3px 6px rgba(0,0,0,.25);display:grid;place-items:center;color:#fff;font-size:15px;font-weight:800}
+.btn.stop.on{background:rgba(239,68,68,.25);color:#fecaca}
+.btn.stop.on .circle{background:#fff;color:var(--red);box-shadow:0 0 0 4px rgba(255,255,255,.35)}
+.next.clickable{cursor:pointer;text-decoration:underline dotted var(--muted);text-underline-offset:4px}
+.alarm-banner{display:none;background:var(--red);color:#fff;border-radius:14px;padding:12px 14px;text-align:center;font-weight:800;font-size:17px;line-height:1.35}
+body.alarm .alarm-banner{display:block;animation:bannerBlink 1s steps(1) infinite}
+body.alarm{animation:bgBlink 1s steps(1) infinite}
+body.alarm .status-card{border-color:var(--red)!important;animation:none}
+body.warn1h{background:#5c2a08}
+body.warn1h .status-card{background:#7c3a12;border-color:var(--orange)}
+body.warn1h .badge{background:rgba(245,158,11,.25);color:#fde68a}
+body.warn1h .bar i{background:var(--orange)}
+@keyframes bgBlink{0%,100%{background:#7f1d1d}50%{background:var(--bg)}}
+@keyframes bannerBlink{0%,100%{background:#ef4444}50%{background:#991b1b}}
+@media (prefers-reduced-motion:reduce){body.alarm{animation:none;background:#7f1d1d}}
+.choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.choice .btn{margin:0;font-size:18px;padding:16px}
+.choice .btn.wide{grid-column:1/-1;font-size:15px;padding:12px;background:var(--card2);color:var(--muted)}
+.btn:active{transform:scale(.98)}
+.log h2,.sect h2{font-size:14px;color:var(--muted);margin:0 0 10px;font-weight:600;display:flex;justify-content:space-between}
+.log ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.log li{display:flex;align-items:center;gap:10px;padding:10px;background:var(--card2);border-radius:10px;font-size:14px;cursor:pointer;min-height:44px}
+.log li .t{font-variant-numeric:tabular-nums;color:var(--muted);min-width:70px}
+.log li .d{margin-left:auto;color:var(--muted);font-size:12px}
+.hint{color:var(--muted);font-size:13px;line-height:1.5;margin:0}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.tools .btn{flex:1 1 30%;font-size:14px;padding:12px 8px;min-height:44px;background:var(--card);border-radius:12px}
+.viewonly{color:var(--muted);font-size:13px;text-align:center;padding:6px}
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:50}
+.backdrop.show{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-width:var(--maxw);margin:0 auto;background:var(--card);border-radius:20px 20px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));z-index:60;display:none;max-height:90vh;overflow:auto}
+.sheet.show{display:block}
+.sheet h3{margin:4px 0 12px;font-size:18px}
+.sheet h4{margin:18px 0 6px;font-size:13px;color:var(--muted);font-weight:600}
+.row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row label{flex:1;font-size:15px}
+.row small{display:block;color:var(--muted);font-size:12px;margin-top:2px;line-height:1.4}
+.row input[type=number]{width:90px;text-align:center}
+.row input[type=time]{width:140px}
+.row .unit{color:var(--muted);font-size:13px}
+.switch{width:50px;height:30px;border-radius:15px;background:var(--line);position:relative;flex:none}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s}
+.switch.on{background:var(--green)} .switch.on::after{left:23px}
+.sheet .btn{width:100%;margin-top:12px}
+.sheet .btn.small{font-size:14px;padding:10px;min-height:40px;margin-top:8px}
+.inline{display:flex;gap:8px;align-items:center}
+.inline input{flex:1}
+.inline .btn{width:auto;margin:0;font-size:14px;padding:10px 12px;min-height:40px;white-space:nowrap}
+textarea{min-height:90px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.4}
+pre.diag{background:var(--bg);border-radius:10px;padding:10px;font-size:12px;white-space:pre-wrap;word-break:break-all;margin:8px 0 0;color:var(--muted);max-height:180px;overflow:auto}
+.toast{position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#fff;color:#111;padding:10px 16px;border-radius:12px;font-size:14px;z-index:100;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+#pipVideo{position:fixed;width:2px;height:2px;opacity:0;pointer-events:none;bottom:0;left:0}
+/* 미니 모드: 옆 창/분할 화면용 */
+body.mini #app{padding:8px 10px;gap:8px}
+body.mini header h1{font-size:14px}
+body.mini .log,body.mini .sect,body.mini .hide-mini{display:none}
+body.mini .card{padding:12px;gap:6px}
+body.mini .timer{font-size:clamp(34px,18vw,56px)}
+body.mini .next{font-size:15px}
+body.mini .btn{font-size:16px;padding:14px 10px;min-height:48px}
+body.mini .actions.two{grid-template-columns:1fr}
+/* 좁은 화면(분할·스냅 창) */
+@media (max-width:380px){
+  #app{padding:8px 10px;gap:8px} .card{padding:12px} .btn{font-size:16px;padding:14px 10px}
+  .meta{gap:8px;font-size:12px} .actions.two{grid-template-columns:1fr} .tools .btn{flex-basis:45%}
+}
+/* PiP 창 */
+/* 원장님 메모 */
+.notebox{display:none;background:var(--card);border-radius:14px;padding:12px 14px;gap:10px;align-items:flex-start;text-align:left}
+.notebox.show{display:flex}
+.notebox .ic{font-size:20px;flex:none}
+.notebox .txt{flex:1;font-size:16px;line-height:1.45;white-space:pre-wrap;word-break:break-word;font-weight:600}
+.notebox .txt.empty{color:var(--muted);font-weight:400}
+.notebox .at{font-size:12px;color:var(--muted);flex:none;margin-top:3px}
+.notebox.clickable{cursor:pointer}
+/* PiP 창: 창 크기에 따라 글자가 함께 커지고 작아짐 */
+body.pip{padding:0;overflow:hidden;min-height:100vh;display:flex;flex-direction:column;transition:background .5s linear}
+body.pip.graded{background:var(--pipbg,var(--bg))}
+body.pip.graded .card{background:rgba(0,0,0,.28);border-color:rgba(255,255,255,.35)}
+body.pip.graded .badge{background:rgba(0,0,0,.25);color:#fff}
+body.pip.graded .timer-label,body.pip.graded .next{color:#fff}
+body.pip #app{padding:6px;gap:5px;min-height:100vh;justify-content:center}
+body.pip .card{padding:clamp(6px,2vw,12px);gap:4px;border-radius:12px}
+body.pip .badge{font-size:clamp(11px,3.6vw,15px);padding:3px 10px}
+body.pip .timer{font-size:clamp(20px,9vw,40px);letter-spacing:0}
+body.pip .timer-label{font-size:clamp(10px,3vw,12px);margin-top:-2px}
+body.pip .next{font-size:clamp(16px,7vw,34px);font-weight:800;line-height:1.25}
+body.pip .meta{display:none} body.pip .name{display:none}
+body.pip .btn{font-size:clamp(13px,4.5vw,17px);padding:8px;min-height:40px;border-radius:12px}
+body.pip .actions.two{grid-template-columns:1fr 1fr} body.pip .actions{gap:5px}
+body.pip .btn.stop{font-size:clamp(10px,3vw,12px);gap:2px} body.pip .btn.stop .circle{width:28px;height:28px;font-size:10px}
+body.pip .alarm-banner{font-size:clamp(12px,4vw,16px);padding:6px}
+body.pip .notebox{padding:8px 10px;border-radius:10px} body.pip .notebox .txt{font-size:clamp(12px,4.5vw,18px)} body.pip .notebox .at{display:none} body.pip .notebox .ic{font-size:16px}
+.pip-tools{display:flex;gap:4px;justify-content:center;align-items:center;padding:2px 0}
+.pip-tools button{background:var(--card);color:var(--muted);border-radius:8px;min-width:34px;height:28px;font-size:13px;font-weight:700;padding:0 8px}
+.pip-tools span{font-size:11px;color:var(--muted);margin:0 2px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+.chip{background:var(--card2);border-radius:999px;padding:10px 14px;font-size:15px;font-weight:600;min-height:40px;display:inline-flex;align-items:center;gap:6px}
+.chip.add{background:transparent;border:1px dashed var(--line);color:var(--muted)}
+.chip .x{color:#fca5a5;font-weight:800;padding-left:4px}
+.chips.editing .chip:not(.add){background:rgba(239,68,68,.12)}
+.row-h{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.row-h small{color:var(--muted)}
+.row-h button{color:var(--accent);font-size:14px;font-weight:600;padding:6px 8px}
+.choice .btn.sel{outline:3px solid #fff}
+/* 뒤로가기 → 떠 있는 창 안내 */
+.pip-prompt{position:fixed;inset:0;background:rgba(15,23,42,.92);z-index:200;display:none;place-items:center;padding:20px}
+.pip-prompt.show{display:grid}
+.pip-prompt .box{background:var(--card);border-radius:20px;padding:22px;max-width:360px;width:100%;text-align:center}
+.pip-prompt h3{margin:0 0 8px;font-size:19px} .pip-prompt p{margin:0 0 16px;color:var(--muted);font-size:14px;line-height:1.5}
+.pip-prompt .btn{width:100%;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1><i class="dot" id="syncDot" title="동기화 상태"></i><span id="title">원장님 근무·휴식</span></h1>
+    <button class="icon-btn" id="miniBtn" title="미니 보기">▣</button>
+    <button class="icon-btn hide-mini" id="pipBtn" title="떠 있는 창">⧉</button>
+    <button class="icon-btn" id="settingsBtn" title="설정">⚙</button>
+  </header>
+
+  <div class="alarm-banner" id="alarmBanner">🚨 원장님이 힘들어요<br>더 이상 시술을 잡지 마세요</div>
+  <div id="main"></div>
+
+  <section class="sect">
+    <div class="tools" id="tools">
+      <button class="btn" id="popBtn">↗ 옆에 작은 창</button>
+      <button class="btn" id="pipBtn2">⧉ 떠 있는 창</button>
+      <button class="btn" id="installBtn" hidden>⬇ 홈 화면에 설치</button>
+    </div>
+    </section>
+
+  <section class="card log" id="logCard"></section>
+
+  <section class="sect"><p class="hint" style="margin-top:10px">모든 기기에 같은 상태가 실시간으로 함께 보여요. CRM 옆에 두려면 '옆에 작은 창' 또는 '떠 있는 창'을 쓰거나, 태블릿에서는 화면 분할로 오른쪽에 두세요. 빨간 동그라미를 누르면 모든 기기가 빨갛게 깜빡이며 "시술을 더 잡지 마세요" 신호가 됩니다.</p>
+  </section>
+
+
+</div>
+
+<div class="pip-prompt" id="pipPrompt">
+  <div class="box">
+    <h3>떠 있는 창으로 볼까요?</h3>
+    <p>앱을 닫는 대신 작은 창으로 띄워 다른 앱 위에서도 시간을 볼 수 있어요.<br>창을 끄려면 그 창의 ✕ 버튼을 누르세요.</p>
+    <button class="btn primary" id="pipPromptOpen">⧉ 떠 있는 창 열기</button>
+    <button class="btn ghost" id="pipPromptStay">그냥 계속 보기</button>
+  </div>
+</div>
+
+<div class="backdrop" id="backdrop"></div>
+
+<!-- 원장님 메모 -->
+<div class="sheet" id="noteSheet">
+  <h3>원장님 메모</h3>
+  <div class="row-h"><small>자주 쓰는 멘트 (누르면 바로 표시)</small><button id="presetEdit">편집</button></div>
+  <div class="chips" id="presetList"></div>
+  <p class="hint">직접 적어도 됩니다. 모든 기기에 바로 표시됩니다.</p>
+  <textarea id="noteText" style="min-height:110px;font-family:inherit;font-size:16px" maxlength="300" placeholder="예: 3시 이후 예약은 상담만 받아주세요"></textarea>
+  <button class="btn primary" id="noteSave">저장</button>
+  <button class="btn ghost" id="noteClear">메모 지우기</button>
+  <button class="btn ghost" id="noteCancel">취소</button>
+</div>
+
+<!-- 설정 -->
+<div class="sheet" id="settingsSheet">
+  <h3>설정</h3>
+  <h4>함께 쓰는 설정 (모든 기기에 적용)</h4>
+  <div class="row"><label>이름<small>화면에 표시되는 호칭</small></label><input id="sName" style="width:150px" placeholder="원장님"></div>
+  <div class="row"><label>근무 간격<small>이만큼 일하면 휴식 알림</small></label><input id="sWork" type="number" inputmode="numeric" min="5" max="600"><span class="unit">분</span></div>
+  <div class="row"><label>휴식 길이<small>스트레칭 등 쉬는 시간</small></label><input id="sBreak" type="number" inputmode="numeric" min="1" max="120"><span class="unit">분</span></div>
+  <div class="row"><label>미리 알림<small>휴식 몇 분 전에 알릴지 (0이면 끔)</small></label><input id="sWarn" type="number" inputmode="numeric" min="0" max="60"><span class="unit">분</span></div>
+  <div class="row"><label>주황 경고<small>연속 근무가 이만큼 지나면 바탕이 주황색 (0이면 끔)</small></label><input id="sOrange" type="number" inputmode="numeric" min="0" max="600"><span class="unit">분</span></div>
+
+  <h4>이 기기 설정</h4>
+  <div class="row"><label>조작 버튼 표시<small>원장님 기기에서 켜기. 직원 기기는 꺼서 보기 전용으로</small></label><button class="switch" id="sCtrl"></button></div>
+  <div class="row"><label>휴식 알림<small>휴식 시간이 되면 알림 표시</small></label><button class="switch" id="sNotify"></button></div>
+  <div class="row"><label>알림 소리<small>짧은 알림음</small></label><button class="switch" id="sSound"></button></div>
+  <div class="row"><label>화면 항상 켜기<small>태블릿을 안내판처럼 둘 때</small></label><button class="switch" id="sWake"></button></div>
+  <div class="row"><label>떠 있는 창 모양<small>태블릿(영상형 PiP)에서 창의 가로세로 비율. 다음에 열 때 적용</small></label>
+    <select id="sPipShape" style="width:120px"><option value="wide">가로형</option><option value="square">정방형</option><option value="tall">세로형</option></select></div>
+
+  <h4>기기 간 연결</h4>
+  <p class="hint">이 앱을 연 모든 기기는 자동으로 같은 상태를 공유합니다.</p>
+  <button class="btn small" id="diagBtn">동기화 상태 점검</button>
+  <pre class="diag" id="diagOut" hidden></pre>
+
+  <h4>백업</h4>
+  <div class="inline"><button class="btn small" id="exportBtn">내보내기(JSON)</button><button class="btn small" id="importBtn">가져오기</button></div>
+  <input type="file" id="importFile" accept="application/json" hidden>
+  <button class="btn small" id="endDayBtn">오늘 근무 마치기</button>
+  <button class="btn small danger" id="resetDayBtn">오늘 기록 지우기</button>
+
+  <button class="btn primary" id="saveSettings">저장</button>
+  <button class="btn ghost" id="closeSettings">닫기</button>
+</div>
+
+<!-- 휴식 길이 선택 -->
+<div class="sheet" id="breakLenSheet">
+  <h3>얼마나 쉴까요?</h3>
+  <div class="choice" id="breakLenChoice">
+    <button class="btn break" data-blen="10">10분</button>
+    <button class="btn break" data-blen="15">15분</button>
+    <button class="btn break" data-blen="20">20분</button>
+    <button class="btn break" data-blen="30">30분</button>
+    <button class="btn break wide" data-blen="60" style="background:var(--purple);color:#1e1b4b;font-size:18px">1시간</button>
+  </div>
+  <button class="btn ghost" id="breakLenCancel">취소</button>
+</div>
+
+<!-- 다음 휴식 시간 조절 -->
+<div class="sheet" id="breakSheet">
+  <h3>다음 휴식까지</h3>
+  <p class="hint">지금부터 얼마 뒤에 휴식할지 정합니다. 모든 기기에 함께 반영됩니다.</p>
+  <div class="choice">
+    <button class="btn break" data-bmin="15">15분 후</button>
+    <button class="btn break" data-bmin="30">30분 후</button>
+    <button class="btn break" data-bmin="45">45분 후</button>
+    <button class="btn break" data-bmin="60">60분 후</button>
+    <button class="btn wide" data-bmin="0">기본 간격으로 되돌리기</button>
+  </div>
+  <button class="btn ghost" id="breakCancel">취소</button>
+</div>
+
+<!-- 시간 수정 -->
+<div class="sheet" id="editSheet">
+  <h3 id="editTitle">시간 수정</h3>
+  <div class="row"><label id="editLabel">시각</label><input type="time" id="editTime"></div>
+  <button class="btn primary" id="editSave">저장</button>
+  <button class="btn ghost" id="editCancel">취소</button>
+</div>
+
+<div class="toast" id="toast"></div>
+<video id="pipVideo" muted playsinline></video>
+
+<script>
+/* ===== Firebase 기본 설정: 여기에 firebaseConfig를 넣어두면 모든 기기에서 붙여넣기 없이 사용 가능 ===== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA-vVCdeCxUXNpDZSt_mdwd3iupuEBKkJY",
+  authDomain: "workandrest-a9a7e.firebaseapp.com",
+  projectId: "workandrest-a9a7e",
+  storageBucket: "workandrest-a9a7e.firebasestorage.app",
+  messagingSenderId: "803425857401",
+  appId: "1:803425857401:web:99fd2eb884b40e9bbcc9a8"
+};
+const FB_VER = '10.12.2';
+const FIRESTORE_DB = 'default'; /* Firebase 콘솔에 만든 Firestore 데이터베이스 이름. 기본 DB면 '(default)' */
+
+/* ===== 상태 ===== */
+const SPACE_ID = 'workandrest-clinic-main'; /* 병원 공용 공간 ID (Firestore 문서 이름, 10자 이상) */
+const DEF_SHARED = { name:'원장님', workMin:90, breakMin:10, warnMin:5, status:'off', events:[], alarm:false, breakAt:0, note:'', noteAt:0, breakLen:0, orangeMin:60, presets:['오늘 리터치 그만','쉬게 해줘~~','다시 잡아도 됨','리터치는 하고 시술은 예약'], updated:0 };
+const DEF_LOCAL  = { ctrl:true, notify:false, sound:false, wake:false, pipShape:'wide', pipW:320, pipH:300 };
+let S = load('wr_shared', DEF_SHARED);
+let L = load('wr_local', DEF_LOCAL);
+const IS_MINI = new URLSearchParams(location.search).get('mini')==='1';
+if(IS_MINI) document.body.classList.add('mini');
+
+function load(k, def){ try{ const v=JSON.parse(localStorage.getItem(k)||'null'); return v? Object.assign({}, def, v) : {...def}; }catch{ return {...def}; } }
+function saveShared(push=true){ localStorage.setItem('wr_shared', JSON.stringify(S)); if(push) pushShared(); }
+function saveLocal(){ localStorage.setItem('wr_local', JSON.stringify(L)); }
+function normalize(r){ const o=Object.assign({}, DEF_SHARED, r||{}); o.events=Array.isArray(o.events)?o.events.filter(e=>e&&typeof e.t==='number'&&e.type).sort((a,b)=>a.t-b.t):[]; o.workMin=+o.workMin||90; o.breakMin=+o.breakMin||10; o.warnMin=Math.max(0,+o.warnMin||0); if(!['off','working','break'].includes(o.status)) o.status='off'; o.alarm=!!o.alarm; o.breakAt=+o.breakAt||0; o.note=typeof o.note==='string'?o.note.slice(0,300):''; o.noteAt=+o.noteAt||0; o.breakLen=+o.breakLen||0; o.orangeMin=Math.max(0,+o.orangeMin||0); o.presets=Array.isArray(o.presets)?o.presets.filter(x=>typeof x==='string'&&x.trim()).map(x=>x.slice(0,60)).slice(0,30):[...DEF_SHARED.presets]; return o; }
+S = normalize(S);
+
+/* ===== 유틸 ===== */
+const $ = s => document.querySelector(s);
+const pad = n => String(n).padStart(2,'0');
+function hm(t){ const d=new Date(t); const h=d.getHours(); return (h<12?'오전 ':'오후 ')+((h%12)||12)+':'+pad(d.getMinutes()); }
+function clock(ms){ ms=Math.max(0,ms); const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor(s%3600/60), sec=s%60; return h? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`; }
+function dur(ms){ ms=Math.max(0,ms); const m=Math.round(ms/60000), h=Math.floor(m/60), mm=m%60; if(h&&mm) return `${h}시간 ${mm}분`; if(h) return `${h}시간`; return `${mm}분`; }
+function durCeil(ms){ return dur(Math.ceil(Math.max(0,ms)/60000)*60000); }
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function dayKey(t){ const d=new Date(t); return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(); }
+/* 진행률 0→1: 밝은 초록 → 주황 → 빨강 */
+function progressColor(p){
+  p=Math.max(0,Math.min(1,p||0));
+  const K=[[140,70,38],[35,92,44],[0,80,42]];
+  const t=p<0.5? p/0.5 : (p-0.5)/0.5; const [a,b]=p<0.5? [K[0],K[1]] : [K[1],K[2]];
+  const m=(x,y)=>Math.round(x+(y-x)*t);
+  return `hsl(${m(a[0],b[0])} ${m(a[1],b[1])}% ${m(a[2],b[2])}%)`;
+}
+function dateLabel(t){ const d=new Date(t); return `${d.getMonth()+1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})`; }
+let toastTimer; function toast(msg,ms=2200){ const el=$('#toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),ms); }
+
+/* ===== 계산 ===== */
+function calc(now){
+  const ev=S.events; const r={status:S.status, events:ev};
+  if(!ev.length){ r.status='off'; r.empty=true; return r; }
+  const start=ev[0].t, last=ev[ev.length-1];
+  let breakMs=0, lastWorkStart=start, curBreakStart=null, breaks=0;
+  for(const e of ev){
+    if(e.type==='break'){ curBreakStart=e.t; breaks++; }
+    else if(curBreakStart!=null && (e.type==='resume'||e.type==='end')){ breakMs+=e.t-curBreakStart; curBreakStart=null; }
+    if(e.type==='start'||e.type==='resume') lastWorkStart=e.t;
+  }
+  if(r.status==='break' && curBreakStart!=null) breakMs += now-curBreakStart;
+  const endT = last.type==='end' ? last.t : now;
+  r.start=start; r.breakMs=breakMs; r.breaks=breaks; r.totalWork=Math.max(0,endT-start-breakMs);
+  if(r.status==='working'){ r.segStart=lastWorkStart; r.segMs=now-lastWorkStart; r.dueAt=lastWorkStart+S.workMin*60000; if(S.breakAt>lastWorkStart){ r.dueAt=S.breakAt; r.custom=true; } r.remain=r.dueAt-now; r.total=r.dueAt-lastWorkStart; }
+  else if(r.status==='break'){ r.segStart=curBreakStart??last.t; r.segMs=now-r.segStart; const bl=(S.breakLen||S.breakMin)*60000; r.dueAt=r.segStart+bl; r.remain=r.dueAt-now; r.total=bl; }
+  else { r.endedAt = last.type==='end'? last.t : null; }
+  return r;
+}
+
+/* ===== 렌더 ===== */
+const EV_LABEL={start:'근무 시작',break:'휴식 시작',resume:'다시 근무',end:'퇴근'};
+const EV_ICON={start:'🟢',break:'🧘',resume:'💪',end:'🏁'};
+
+function statusMarkup(){
+  return `<section class="card status-card" data-id="card">
+    <div><span class="badge" data-id="badge"></span></div>
+    <div class="name" data-id="name"></div>
+    <div class="timer" data-id="timer">--:--</div>
+    <div class="timer-label" data-id="tlabel"></div>
+    <div class="next" data-id="next"></div>
+    <div class="bar"><i data-id="bar" style="width:0%"></i></div>
+    <div class="meta" data-id="meta"></div>
+  </section>
+  <div class="actions" data-id="actions"></div>
+  <div class="notebox" data-id="note"><span class="ic">💬</span><span class="txt"></span><span class="at"></span></div>`;
+}
+
+function renderStatic(root){
+  if(!root) return;
+  if(!root.querySelector('[data-id=card]')) root.innerHTML = statusMarkup();
+  const acts=root.querySelector('[data-id=actions]');
+  const st=S.status;
+  const stopBtn=`<button class="btn stop ${S.alarm?'on':''}" data-act="alarm" title="시술 마감 신호"><span class="circle">${S.alarm?'해제':''}</span><span>${S.alarm?'빨간불 해제':'시술 그만 (빨간불)'}</span></button>`;
+  if(!L.ctrl){ acts.className='actions'; acts.innerHTML=`<div class="viewonly">보기 전용 기기 (설정에서 조작 버튼을 켤 수 있어요)</div>`; }
+  else if(st==='off'){ acts.className='actions two'; acts.innerHTML=`<button class="btn primary" data-act="start">▶ 근무 시작</button>${stopBtn}`; }
+  else if(st==='working'){ acts.className='actions two'; acts.innerHTML=`<button class="btn break" data-act="break">🧘 쉬기 시작</button>${stopBtn}`; }
+  else { acts.className='actions two'; acts.innerHTML=`<button class="btn primary" data-act="resume">💪 다시 일하기</button>${stopBtn}`; }
+  renderLive(root);
+}
+
+function renderLive(root){
+  if(!root) return;
+  const card=root.querySelector('[data-id=card]'); if(!card) return;
+  const now=Date.now(), c=calc(now);
+  const q=id=>root.querySelector(`[data-id=${id}]`);
+  let cls='status-card', badge='', timer='--:--', tlabel='', next='', pct=0;
+  if(c.status==='working'){
+    timer=clock(c.segMs); tlabel='연속 근무 시간'; pct=Math.min(100,c.segMs/c.total*100);
+    if(c.remain>0){ cls+=' working'; badge='근무 중'; next=`다음 휴식까지 <b>${durCeil(c.remain)}</b> · ${hm(c.dueAt)} 예정${c.custom?' (조절됨)':''}`; }
+    else { const over=-c.remain; cls+= over>10*60000?' over':' due'; badge='🧘 휴식 시간이에요!'; next=`${hm(c.dueAt)} 휴식 예정이었어요 · <b>${durCeil(over)}</b> 지남`; pct=100; }
+  } else if(c.status==='break'){
+    timer=clock(c.segMs); tlabel='휴식 경과 시간'; pct=Math.min(100,c.segMs/c.total*100);
+    if(c.remain>0){ cls+=' break'; badge='🧘 휴식 중'; next=`휴식 끝까지 <b>${durCeil(c.remain)}</b> · ${hm(c.dueAt)}까지`; }
+    else { cls+=' due'; badge='휴식 끝'; next=`다시 일할 시간이에요 · <b>${durCeil(-c.remain)}</b> 지남`; pct=100; }
+  } else if(c.empty){
+    badge='근무 전'; next=L.ctrl?'‘근무 시작’ 버튼을 눌러 주세요':'아직 근무를 시작하지 않았어요';
+  } else {
+    badge='퇴근'; timer=dur(c.totalWork); tlabel='오늘 총 근무'; next=`${hm(c.start)} 출근 · ${c.endedAt?hm(c.endedAt)+' 퇴근':''}`;
+  }
+  card.className=cls; q('badge').textContent=badge; q('name').textContent=S.name||'원장님';
+  q('timer').textContent=timer; q('tlabel').textContent=tlabel; const nx=q('next'); nx.innerHTML=next; nx.classList.toggle('clickable', L.ctrl && c.status==='working'); nx.dataset.adjust = (L.ctrl && c.status==='working') ? '1' : '';
+  root.ownerDocument.body.classList.toggle('alarm', !!S.alarm);
+  root.ownerDocument.body.classList.toggle('warn1h', c.status==='working' && S.orangeMin>0 && c.segMs>=S.orangeMin*60000);
+  const nb=q('note'); const hasNote=!!(S.note&&S.note.trim());
+  nb.classList.toggle('show', hasNote || L.ctrl); nb.classList.toggle('clickable', L.ctrl); nb.dataset.note = L.ctrl?'1':'';
+  const tx=nb.querySelector('.txt'); tx.textContent = hasNote? S.note : '메모를 남기려면 누르세요'; tx.classList.toggle('empty',!hasNote);
+  nb.querySelector('.at').textContent = hasNote && S.noteAt ? hm(S.noteAt) : '';
+  q('bar').style.width=pct+'%';
+  const body=root.ownerDocument.body; const grade = c.status==='working' && c.remain>0;
+  const col = grade ? progressColor(c.segMs/c.total) : '';
+  q('bar').style.background = col; card.style.borderColor = col;
+  if(body.classList.contains('pip')){ body.classList.toggle('graded', grade); if(grade) body.style.setProperty('--pipbg', col); else body.style.removeProperty('--pipbg'); }
+  q('meta').innerHTML = c.empty ? '' : `<span>출근 <b>${hm(c.start)}</b></span><span>총 근무 <b>${dur(c.totalWork)}</b></span><span>휴식 <b>${c.breaks}회 ${dur(c.breakMs)}</b></span>`;
+  return c;
+}
+
+function renderLog(){
+  const el=$('#logCard'); const ev=S.events;
+  if(!ev.length){ el.innerHTML=`<h2>오늘 기록</h2><p class="hint">아직 기록이 없어요.</p>`; return; }
+  el.innerHTML=`<h2><span>${dateLabel(ev[0].t)} 기록</span><span>시간을 누르면 수정</span></h2><ul>`+
+    ev.map((e,i)=>{ const nx=ev[i+1]; const d= nx? dur(nx.t-e.t) : (S.status==='off'?'':'진행 중'); return `<li data-edit="${i}"><span class="t">${hm(e.t)}</span><span>${EV_ICON[e.type]||''} ${EV_LABEL[e.type]||e.type}</span><span class="d">${d}</span></li>`; }).join('')+`</ul>`;
+}
+
+function renderAll(){ renderStatic($('#main')); if(pipWin) renderStatic(pipWin.document.querySelector('#main')); renderLog(); $('#title').textContent=(S.name||'원장님')+' 근무·휴식'; }
+
+/* ===== 동작 ===== */
+function act(type){
+  const now=Date.now();
+  if(type==='start'){ if(S.events.length && S.status!=='off') return; S.events=[{t:now,type:'start'}]; S.status='working'; toast('근무 시작! 힘내세요 💪'); }
+  else if(type==='break'){ if(S.status!=='working') return; try{ window.focus(); }catch{} openLayer('breakLenSheet', ()=>{ $('#breakLenChoice').querySelectorAll('[data-blen]').forEach(b=>b.classList.toggle('sel', +b.dataset.blen===S.breakMin)); }); return; }
+  else if(type==='resume'){ if(S.status!=='break') return; S.events.push({t:now,type:'resume'}); S.status='working'; S.breakLen=0; toast('다시 근무 시작'); }
+  else if(type==='end'){ if(S.status==='off') return; if(!confirm('오늘 근무를 마칠까요?')) return; S.events.push({t:now,type:'end'}); S.status='off'; toast('수고하셨습니다 🏁'); }
+  else if(type==='alarm'){ S.alarm=!S.alarm; toast(S.alarm?'🚨 모든 기기에 빨간불! 시술을 더 잡지 마세요':'빨간불을 해제했어요'); }
+  else return;
+  if(type==='break'||type==='resume'||type==='start') S.breakAt=0;
+  S.updated=now; saveShared(); renderAll();
+}
+document.addEventListener('click', e=>{
+  const b=e.target.closest('[data-act]'); if(b){ act(b.dataset.act); return; }
+  const li=e.target.closest('[data-edit]'); if(li && L.ctrl) return openEdit(+li.dataset.edit);
+  const nx=e.target.closest('[data-id=next]'); if(nx && nx.dataset.adjust) return openLayer('breakSheet');
+  const nb=e.target.closest('[data-id=note]'); if(nb && nb.dataset.note) openNote();
+});
+let presetEditing=false;
+function renderPresets(){
+  const el=$('#presetList'); el.classList.toggle('editing',presetEditing);
+  el.innerHTML=(S.presets||[]).map((t,i)=>`<button class="chip" data-preset="${i}">${esc(t)}${presetEditing?'<span class="x" data-del="'+i+'">✕</span>':''}</button>`).join('')+
+    (presetEditing?`<button class="chip add" data-addpreset>＋ 멘트 추가</button>`:'');
+  $('#presetEdit').textContent=presetEditing?'완료':'편집';
+}
+function savePresets(){ S.updated=Date.now(); saveShared(); renderPresets(); }
+$('#presetEdit').onclick=()=>{ presetEditing=!presetEditing; renderPresets(); };
+$('#presetList').addEventListener('click', e=>{
+  const del=e.target.closest('[data-del]'); if(del){ const i=+del.dataset.del; if(confirm(`"${S.presets[i]}" 멘트를 지울까요?`)){ S.presets.splice(i,1); savePresets(); } return; }
+  if(e.target.closest('[data-addpreset]')){ const t=(prompt('추가할 멘트를 입력하세요')||'').trim(); if(t){ S.presets.push(t.slice(0,60)); savePresets(); } return; }
+  const c=e.target.closest('[data-preset]'); if(!c) return; const i=+c.dataset.preset;
+  if(presetEditing){ const t=prompt('멘트 수정', S.presets[i]); if(t!=null && t.trim()){ S.presets[i]=t.trim().slice(0,60); savePresets(); } return; }
+  setNote(S.presets[i]); uiBack(); toast('메모를 모든 기기에 표시했어요');
+});
+function openNote(){ presetEditing=false; openLayer('noteSheet', ()=>{ $('#noteText').value=S.note||''; renderPresets(); }); }
+function setNote(t){ S.note=t.trim().slice(0,300); S.noteAt=S.note?Date.now():0; prevNote=S.note; S.updated=Date.now(); saveShared(); renderAll(); }
+$('#noteSave').onclick=()=>{ setNote($('#noteText').value); uiBack(); toast(S.note?'메모를 모든 기기에 표시했어요':'메모를 지웠어요'); };
+$('#noteClear').onclick=()=>{ setNote(''); uiBack(); toast('메모를 지웠어요'); };
+$('#noteCancel').onclick=uiBack;
+$('#breakCancel').onclick=uiBack;
+$('#breakLenCancel').onclick=uiBack;
+$('#breakLenChoice').addEventListener('click', e=>{
+  const b=e.target.closest('[data-blen]'); if(!b) return; const m=+b.dataset.blen;
+  if(S.status!=='working') return uiBack();
+  startBreak(m); uiBack();
+});
+function startBreak(m){
+  if(S.status!=='working') return;
+  const now=Date.now(); S.events.push({t:now,type:'break'}); S.status='break'; S.breakLen=m; S.breakAt=0; S.updated=now; saveShared(); renderAll();
+  toast(`${m>=60?'1시간':m+'분'} 휴식 시작 🧘 ${hm(now+m*60000)}까지`);
+}
+$('#breakSheet').addEventListener('click', e=>{
+  const b=e.target.closest('[data-bmin]'); if(!b) return; const m=+b.dataset.bmin;
+  if(S.status!=='working') return uiBack();
+  S.breakAt = m? Date.now()+m*60000 : 0; S.updated=Date.now(); saveShared(); renderAll(); uiBack();
+  toast(m? `${m}분 후(${hm(S.breakAt)}) 휴식으로 맞췄어요` : '기본 간격으로 되돌렸어요');
+});
+/* 날짜가 바뀌면 어제 기록은 자동 정리 */
+function rolloverIfNewDay(){
+  if(!S.events.length || dayKey(S.events[0].t)===dayKey(Date.now())) return false;
+  S.events=[]; S.status='off'; S.breakAt=0; S.alarm=false; S.updated=Date.now(); saveShared(); return true;
+}
+
+/* ===== 레이어(뒤로가기) ===== */
+const uiStack=[];
+function pushHist(tag){ try{ history.pushState({t:tag},''); return true; }catch{ return false; } }
+function showLayer(tag){ $('#backdrop').classList.add('show'); $('#'+tag).classList.add('show'); }
+function hideLayer(tag){ $('#'+tag).classList.remove('show'); if(!uiStack.length) $('#backdrop').classList.remove('show'); }
+function openLayer(tag,prep){ if(prep) prep(); showLayer(tag); uiStack.push({tag,pushed:pushHist(tag)}); }
+function uiBack(){ const t=uiStack[uiStack.length-1]; if(!t) return; if(t.pushed) history.back(); else { uiStack.pop(); hideLayer(t.tag); } }
+/* 홈에서 뒤로가기: 앱 종료 대신 떠 있는 창 */
+/* 크롬(안드로이드)은 사용자 터치 없이 넣은 히스토리 항목을 뒤로가기에서 건너뛰므로,
+   첫 터치 때(그리고 항목이 소진될 때마다) 다시 세운다 */
+let homeGuard=false, guardTrusted=false, hadGesture=false;
+function armHomeGuard(){ try{ history.pushState({home:1},''); homeGuard=true; guardTrusted=hadGesture; }catch{ homeGuard=false; } }
+function onGesture(){ hadGesture=true; if(!homeGuard || !guardTrusted) armHomeGuard(); }
+document.addEventListener('pointerdown', onGesture, {capture:true, passive:true});
+document.addEventListener('keydown', onGesture, {capture:true});
+window.addEventListener('popstate',()=>{
+  if(uiStack.length){ hideLayer(uiStack.pop().tag); return; }
+  if(!homeGuard) return;
+  homeGuard=false; armHomeGuard();
+  if(pipWin || document.pictureInPictureElement){ toast('떠 있는 창이 켜져 있어요. 홈 버튼으로 나가면 다른 앱 위에도 계속 보여요. 끄려면 창의 ✕',3500); return; }
+  Promise.race([openPip({quiet:true}), new Promise(r=>setTimeout(()=>r('timeout'),1200))])
+    .then(ok=>{ if(ok!==true && !pipWin && !document.pictureInPictureElement) $('#pipPrompt').classList.add('show'); });
+});
+$('#pipPromptOpen').onclick=()=>{ $('#pipPrompt').classList.remove('show'); if(!pipWin && !document.pictureInPictureElement) openPip(); };
+$('#pipPromptStay').onclick=()=>$('#pipPrompt').classList.remove('show');
+try{ navigator.mediaSession?.setActionHandler?.('enterpictureinpicture', ()=>openPip({quiet:true})); }catch{}
+$('#backdrop').addEventListener('click', uiBack);
+
+/* ===== 시간 수정 ===== */
+let editIdx=-1;
+function openEdit(i){
+  const e=S.events[i]; if(!e) return; editIdx=i;
+  openLayer('editSheet', ()=>{ $('#editTitle').textContent=(EV_LABEL[e.type]||'')+' 시간 수정'; $('#editLabel').textContent=dateLabel(e.t); $('#editTime').value=hm(e.t); });
+}
+$('#editCancel').onclick=uiBack;
+$('#editSave').onclick=()=>{
+  const e=S.events[editIdx]; if(!e) return uiBack();
+  const [h,m]=($('#editTime').value||'').split(':').map(Number); if(isNaN(h)||isNaN(m)) return toast('시간을 입력해 주세요');
+  const d=new Date(e.t); d.setHours(h,m,0,0); const nt=d.getTime();
+  const prev=S.events[editIdx-1], next=S.events[editIdx+1];
+  if(prev && nt<=prev.t) return toast(`이전 기록(${hm(prev.t)})보다 뒤여야 해요`);
+  if(next && nt>=next.t) return toast(`다음 기록(${hm(next.t)})보다 앞이어야 해요`);
+  if(!next && nt>Date.now()) return toast('미래 시간은 넣을 수 없어요');
+  e.t=nt; S.updated=Date.now(); saveShared(); renderAll(); uiBack(); toast('수정했어요');
+};
+
+/* ===== 설정 ===== */
+function setSw(id,on){ $(id).classList.toggle('on',!!on); }
+function getSw(id){ return $(id).classList.contains('on'); }
+document.querySelectorAll('.switch').forEach(b=>b.addEventListener('click', async ()=>{
+  const on=!b.classList.contains('on');
+  if(b.id==='sNotify' && on){ const ok=await askNotify(); if(!ok) return; }
+  if(b.id==='sSound' && on) { beep(true); }
+  b.classList.toggle('on',on);
+}));
+function openSettings(){
+  openLayer('settingsSheet', ()=>{
+    $('#sName').value=S.name; $('#sWork').value=S.workMin; $('#sBreak').value=S.breakMin; $('#sWarn').value=S.warnMin; $('#sOrange').value=S.orangeMin;
+    setSw('#sCtrl',L.ctrl); setSw('#sNotify',L.notify); setSw('#sSound',L.sound); setSw('#sWake',L.wake); $('#sPipShape').value=L.pipShape||'wide';
+    $('#diagOut').hidden=true;
+  });
+}
+$('#settingsBtn').onclick=openSettings; $('#closeSettings').onclick=uiBack;
+$('#saveSettings').onclick=()=>{
+  const name=$('#sName').value.trim()||'원장님', w=Math.max(5,+$('#sWork').value||90), b=Math.max(1,+$('#sBreak').value||10), wm=Math.max(0,+$('#sWarn').value||0), om=Math.max(0,+$('#sOrange').value||0);
+  if(name!==S.name||w!==S.workMin||b!==S.breakMin||wm!==S.warnMin||om!==S.orangeMin){ Object.assign(S,{name,workMin:w,breakMin:b,warnMin:wm,orangeMin:om,updated:Date.now()}); saveShared(); }
+  const shape=$('#sPipShape').value; if(shape!==L.pipShape && pipVideoOn){ pipVideoOn=false; pipCanvas=null; try{ $('#pipVideo').srcObject=null; }catch{} }
+  L={...L, ctrl:getSw('#sCtrl'), notify:getSw('#sNotify'), sound:getSw('#sSound'), wake:getSw('#sWake'), pipShape:shape};
+  saveLocal(); applyWake(); renderAll(); uiBack(); toast('저장했어요');
+};
+$('#endDayBtn').onclick=()=>{ if(S.status==='off') return toast('지금은 근무 중이 아니에요'); uiBack(); act('end'); };
+$('#resetDayBtn').onclick=()=>{ if(!confirm('오늘 기록을 모두 지울까요? (연결된 기기에도 반영됩니다)')) return; S.events=[]; S.status='off'; S.breakAt=0; S.alarm=false; S.updated=Date.now(); saveShared(); renderAll(); uiBack(); toast('지웠어요'); };
+$('#exportBtn').onclick=()=>{ const blob=new Blob([JSON.stringify({shared:S,exported:Date.now()},null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`workrest-${new Date().toISOString().slice(0,10)}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); };
+$('#importBtn').onclick=()=>$('#importFile').click();
+$('#importFile').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; try{ const j=JSON.parse(await f.text()); const r=normalize(j.shared||j); if((r.updated||0)>=(S.updated||0)||confirm('가져오는 데이터가 현재보다 오래됐어요. 덮어쓸까요?')){ S=r; S.updated=Date.now(); saveShared(); renderAll(); toast('가져왔어요'); } }catch{ toast('파일을 읽을 수 없어요'); } };
+
+/* ===== 알림 ===== */
+async function askNotify(){
+  if(!('Notification' in window)){ toast('이 브라우저는 알림을 지원하지 않아요'); return false; }
+  if(Notification.permission==='granted') return true;
+  const p=await Notification.requestPermission(); if(p!=='granted'){ toast('알림 권한이 필요해요 (브라우저 설정에서 허용)'); return false; } return true;
+}
+async function notify(title, body, tag){
+  if(!L.notify || !('Notification' in window) || Notification.permission!=='granted') return;
+  const opt={body, tag, icon:'./icon-192.png', badge:'./icon-192.png', renotify:true, vibrate:[200,100,200]};
+  try{ const reg=await navigator.serviceWorker?.getRegistration(); if(reg) return reg.showNotification(title,opt); }catch{}
+  try{ new Notification(title,opt); }catch{}
+}
+let audioCtx;
+function beep(test){
+  if(!L.sound && !test) return;
+  try{ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==='suspended') audioCtx.resume();
+    [0,0.25,0.5].forEach(off=>{ const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='sine'; o.frequency.value=880; g.gain.setValueAtTime(0.0001,audioCtx.currentTime+off); g.gain.exponentialRampToValueAtTime(0.3,audioCtx.currentTime+off+0.02); g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+off+0.2); o.connect(g).connect(audioCtx.destination); o.start(audioCtx.currentTime+off); o.stop(audioCtx.currentTime+off+0.22); });
+  }catch{}
+}
+document.addEventListener('pointerdown',()=>{ try{ if(L.sound){ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume(); } }catch{} },{once:true});
+let alerted = load('wr_alerted',{});
+let prevAlarm=S.alarm, prevNote=S.note;
+function checkAlerts(c){
+  if(S.note!==prevNote){ prevNote=S.note; if(S.note) notify(`💬 ${S.name||'원장님'} 메모`, S.note, 'note'); }
+  if(S.alarm!==prevAlarm){ prevAlarm=S.alarm; if(S.alarm){ notify(`🚨 ${S.name||'원장님'} 시술 마감`, '원장님이 힘들어요. 더 이상 시술을 잡지 마세요', 'alarm'); beep(); } }
+  if(!c || c.remain===undefined) return;
+  const key=c.status+':'+c.segStart;
+  const fire=(k,title,body)=>{ if(alerted[k]) return; alerted={[k]:1, ...Object.fromEntries(Object.entries(alerted).slice(-10))}; localStorage.setItem('wr_alerted',JSON.stringify(alerted)); notify(title,body,k); beep(); };
+  const nm=S.name||'원장님';
+  if(c.status==='working'){
+    if(S.warnMin>0 && c.remain<=S.warnMin*60000 && c.remain>0 && S.workMin>S.warnMin) fire('w:'+key, `${nm} 휴식 ${S.warnMin}분 전`, `${hm(c.dueAt)}에 ${S.breakLen||S.breakMin}분 휴식 예정이에요`);
+    if(c.remain<=0) fire('d:'+key, `${nm} 휴식 시간이에요 🧘`, `${dur(S.workMin*60000)} 근무했어요. ${S.breakMin}분 스트레칭!`);
+  } else if(c.status==='break' && c.remain<=0) fire('e:'+key, `휴식 끝`, `${nm} 다시 일할 시간이에요`);
+}
+
+/* ===== 화면 켜두기 ===== */
+let wakeLock=null;
+async function applyWake(){
+  try{
+    if(L.wake && 'wakeLock' in navigator && document.visibilityState==='visible'){ if(!wakeLock){ wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release',()=>{wakeLock=null;}); } }
+    else if(!L.wake && wakeLock){ await wakeLock.release(); wakeLock=null; }
+  }catch(e){ if(L.wake) toast('화면 켜두기를 사용할 수 없어요'); }
+}
+document.addEventListener('visibilitychange',()=>{ applyWake(); if(document.visibilityState==='visible') tick(); });
+
+/* ===== 미니 보기 / 옆 창 / PiP ===== */
+$('#miniBtn').onclick=()=>{ document.body.classList.toggle('mini'); const u=new URL(location.href); if(document.body.classList.contains('mini')) u.searchParams.set('mini','1'); else u.searchParams.delete('mini'); try{ history.replaceState(history.state,'',u); }catch{} };
+$('#popBtn').onclick=()=>{
+  const w=300,h=460, left=Math.max(0,(screen.availWidth||screen.width)-w-16), top=80;
+  const u=new URL(location.href); u.searchParams.set('mini','1');
+  const win=window.open(u.toString(),'wr_mini',`popup=yes,width=${w},height=${h},left=${left},top=${top}`);
+  if(!win) toast('팝업이 막혔어요. 브라우저에서 팝업을 허용해 주세요'); else toast('작은 창을 CRM 옆에 두세요. 창 크기와 위치는 자유롭게 조절 가능');
+};
+let pipWin=null, pipVideoOn=false;
+async function openPip(opt={}){
+  const quiet=!!opt.quiet;
+  if(pipWin){ try{ pipWin.focus(); }catch{} return true; }
+  if('documentPictureInPicture' in window){
+    try{
+      const pw=await documentPictureInPicture.requestWindow({width:L.pipW||320,height:L.pipH||300});
+      for(const ss of document.styleSheets){ try{ const st=pw.document.createElement('style'); st.textContent=[...ss.cssRules].map(r=>r.cssText).join('\n'); pw.document.head.appendChild(st); }catch{} }
+      pw.document.body.className='pip';
+      pw.document.body.innerHTML='<div id="app"><div class="alarm-banner">🚨 원장님이 힘들어요 · 시술 그만</div><div id="main"></div>'+
+        '<div class="pip-tools"><span>좌우</span><button data-pip="w-" title="좁게">−</button><button data-pip="w+" title="넓게">+</button><span>상하</span><button data-pip="h-" title="낮게">−</button><button data-pip="h+" title="높게">+</button></div></div>';
+      pw.document.addEventListener('click',e=>{
+        const b=e.target.closest('[data-act]'); if(b) return act(b.dataset.act);
+        const r=e.target.closest('[data-pip]'); if(r){ const k=r.dataset.pip; const d=40; try{ pw.resizeBy(k==='w+'?d:k==='w-'?-d:0, k==='h+'?d:k==='h-'?-d:0); }catch{} return; }
+        const nb=e.target.closest('[data-id=note]'); if(nb && L.ctrl){ try{ window.focus(); }catch{} openNote(); return; }
+        const nx=e.target.closest('[data-id=next]'); if(nx && nx.dataset.adjust){ try{ window.focus(); }catch{} openLayer('breakSheet'); }
+      });
+      pw.addEventListener('resize',()=>{ L.pipW=pw.innerWidth; L.pipH=pw.innerHeight; saveLocal(); });
+      pipWin=pw; pw.addEventListener('pagehide',()=>{ pipWin=null; }); $('#pipPrompt').classList.remove('show');
+      renderStatic(pw.document.querySelector('#main'));
+      if(!quiet) toast('떠 있는 창을 열었어요. 창 가장자리를 끌거나 아래 −/+ 로 크기 조절');
+      return true;
+    }catch(e){ if(e.name!=='NotAllowedError') console.warn(e); if(e.name==='NotAllowedError') return false; }
+  }
+  if(document.pictureInPictureEnabled){
+    try{
+      const v=$('#pipVideo');
+      if(!pipVideoOn){
+        const size={wide:[480,270],square:[400,400],tall:[300,420]}[L.pipShape]||[480,270];
+        const cv=document.createElement('canvas'); cv.width=size[0]; cv.height=size[1]; pipCanvas=cv; drawPipCanvas();
+        v.srcObject=cv.captureStream(4); v.muted=true; pipVideoOn=true;
+      }
+      await v.play(); await v.requestPictureInPicture();
+      v.addEventListener('leavepictureinpicture',()=>{ v.pause(); },{once:true});
+      if(!quiet) toast('떠 있는 창을 열었어요 (보기 전용). 두 손가락으로 크기 조절, 모양은 설정에서');
+      return true;
+    }catch(e){ console.warn(e); if(!quiet) toast('떠 있는 창을 열 수 없어요: '+(e.message||e.name)); return false; }
+  }
+  if(!quiet) toast('이 브라우저는 떠 있는 창을 지원하지 않아요. ‘옆에 작은 창’ 또는 화면 분할을 이용해 주세요',3500);
+  return false;
+}
+let pipCanvas=null;
+setInterval(()=>{ if(pipVideoOn) drawPipCanvas(); },500);
+function fitText(ctx, text, maxW){ if(ctx.measureText(text).width<=maxW) return text; while(text.length>1 && ctx.measureText(text+'…').width>maxW) text=text.slice(0,-1); return text+'…'; }
+function drawPipCanvas(){
+  if(!pipCanvas) return; const ctx=pipCanvas.getContext('2d'), W=pipCanvas.width, H=pipCanvas.height; const now=Date.now(); const c=calc(now);
+  const theme={working:['#14532d','#22c55e'],break:['#312e81','#a78bfa'],off:['#1e293b','#94a3b8']};
+  let [bg,fg]=theme[c.status]||theme.off; let badge, big, sub;
+  if(c.status==='working'){ big=clock(c.segMs); if(c.remain>0){ badge='근무 중'; sub=`다음 휴식까지 ${durCeil(c.remain)} (${hm(c.dueAt)})`; bg=progressColor(c.segMs/c.total); fg='#fff'; } else { badge='휴식 시간이에요!'; sub=`${durCeil(-c.remain)} 지남`; bg=Math.floor(now/1000)%2? '#b91c1c':'#7f1d1d'; fg='#fde68a'; } }
+  else if(c.status==='break'){ big=clock(c.segMs); if(c.remain>0){ badge='휴식 중'; sub=`휴식 끝까지 ${durCeil(c.remain)} (${hm(c.dueAt)})`; } else { badge='휴식 끝'; sub=`다시 일할 시간 · ${durCeil(-c.remain)} 지남`; bg='#7c2d12'; fg='#fbbf24'; } }
+  else if(c.empty){ badge='근무 전'; big='--:--'; sub='아직 시작 안 함'; }
+  else { badge='퇴근'; big=dur(c.totalWork); sub=`${hm(c.start)} 출근 · 총 근무`; }
+  if(S.alarm){ const on=Math.floor(now/500)%2===0; bg=on?'#dc2626':'#450a0a'; fg='#fff'; badge='🚨 시술 그만'; sub='원장님이 힘들어요 · 더 잡지 마세요'; }
+  const u=Math.min(W,H)/270;
+  const note=(S.note||'').trim();
+  const lines=[
+    {t:`${S.name||'원장님'} · ${badge}`, f:24, c:fg, b:true},
+    {t:big, f:58, c:'#fff', b:true},
+    {t:sub, f:34, c:'#fef3c7', b:true},
+  ];
+  if(note) lines.push({t:'💬 '+note.replace(/\s+/g,' '), f:24, c:'#e2e8f0'});
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); ctx.textAlign='center'; ctx.textBaseline='middle';
+  const rowH=H/(lines.length+0.4); let y=rowH*0.7;
+  for(const ln of lines){ ctx.fillStyle=ln.c; let f=ln.f*u; const setF=()=>{ ctx.font=`${ln.b?'bold ':''}${Math.round(f)}px sans-serif`; }; setF();
+    while(ctx.measureText(ln.t).width>W*0.94 && f>ln.f*u*0.62){ f-=1; setF(); }
+    ctx.fillText(fitText(ctx,ln.t,W*0.94),W/2,y); y+=rowH; }
+}
+$('#pipBtn').onclick=()=>openPip(); $('#pipBtn2').onclick=()=>openPip();
+
+/* ===== 설치 ===== */
+let installEvt=null;
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); installEvt=e; $('#installBtn').hidden=false; });
+$('#installBtn').onclick=async()=>{ if(!installEvt) return; installEvt.prompt(); await installEvt.userChoice; installEvt=null; $('#installBtn').hidden=true; };
+
+/* ===== 동기화 (Firestore) ===== */
+let fb=null, unsub=null, syncState='off';
+function setSync(state,msg){ syncState=state; const d=$('#syncDot'); d.className='dot '+(state==='on'?'on':state==='err'?'err':state==='wait'?'wait':''); d.title= state==='on'?'동기화 연결됨':state==='err'?('동기화 오류: '+(msg||'')):state==='wait'?'연결 중…':'동기화 꺼짐(연결 코드 없음)'; }
+async function loadFb(cfg){
+  const appM=await import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-app.js`);
+  const fsM=await import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-firestore.js`);
+  const name='wr-'+btoa(unescape(encodeURIComponent(cfg.projectId||'')+'|'+(cfg.apiKey||''))).replace(/[^a-z0-9]/gi,'').slice(0,20);
+  const app=appM.getApps().find(a=>a.name===name)||appM.initializeApp(cfg,name);
+  return {appM,fsM,db: FIRESTORE_DB && FIRESTORE_DB!=='(default)' ? fsM.getFirestore(app, FIRESTORE_DB) : fsM.getFirestore(app)};
+}
+async function connectSync(){
+  if(unsub){ unsub(); unsub=null; } fb=null;
+  const cfg=FIREBASE_CONFIG, code=SPACE_ID;
+  if(!cfg){ setSync('off'); return; }
+  setSync('wait');
+  try{
+    const f=await loadFb(cfg); fb={...f, ref:f.fsM.doc(f.db,'spaces',code)};
+    unsub=f.fsM.onSnapshot(fb.ref, snap=>{
+      setSync('on');
+      if(!snap.exists()){ if(S.updated) pushShared(); return; }
+      const r=normalize(snap.data());
+      if((r.updated||0)>(S.updated||0)){ S=r; saveShared(false); if(!rolloverIfNewDay()) renderAll(); else renderAll(); }
+      else if((S.updated||0)>(r.updated||0)) pushShared();
+    }, err=>{ setSync('err',err.code||err.message); toast('동기화 오류: '+(err.code||err.message)+' (설정 → 동기화 상태 점검)',4000); });
+  }catch(e){ setSync('err',e.message); toast('Firebase 연결 실패: 설정을 확인해 주세요',3500); }
+}
+let pushTimer=null;
+function pushShared(){
+  if(!fb) return; clearTimeout(pushTimer);
+  pushTimer=setTimeout(async()=>{ try{ await fb.fsM.setDoc(fb.ref,{...S}); }catch(e){ setSync('err',e.code||e.message); toast('저장 실패: '+(e.code||e.message),3500); } },150);
+}
+$('#diagBtn').onclick=async()=>{
+  const out=$('#diagOut'); out.hidden=false; const lines=[]; const log=s=>{ lines.push(s); out.textContent=lines.join('\n'); };
+  const code=SPACE_ID, cfg=FIREBASE_CONFIG;
+  log(`온라인: ${navigator.onLine?'예':'아니오'}`);
+  if(!cfg){ log('❌ 앱에 Firebase 설정이 없어요'); return; }
+  log(`프로젝트: ${cfg.projectId||'(없음)'} · DB: ${FIRESTORE_DB} · 공간: ${code}`);
+  try{ const f=await loadFb(cfg); log('✅ Firebase SDK 로드');
+    const ref=f.fsM.doc(f.db,'spaces',code);
+    try{ const s=await f.fsM.getDoc(ref); log(`✅ 읽기 OK (문서 ${s.exists()?'있음, 마지막 갱신 '+new Date(s.data().updated||0).toLocaleString():'없음'})`); }catch(e){ log('❌ 읽기 실패: '+(e.code||e.message)+'\n → Firestore 규칙에서 spaces/{id} get/write 허용 필요 (README)'); return; }
+    try{ await f.fsM.setDoc(ref,{_ping:Date.now()},{merge:true}); log('✅ 쓰기 OK'); }catch(e){ log('❌ 쓰기 실패: '+(e.code||e.message)); return; }
+    log('모두 정상입니다. 기기 간 공유가 동작합니다.'); if(syncState!=='on') connectSync();
+  }catch(e){ log('❌ SDK 로드/초기화 실패: '+(e.message||e)); }
+};
+
+/* ===== 틱 ===== */
+function tick(){
+  if(rolloverIfNewDay()) renderAll();
+  const c=renderLive($('#main'));
+  if(pipWin){ try{ renderLive(pipWin.document.querySelector('#main')); }catch{ pipWin=null; } }
+  if(pipVideoOn) drawPipCanvas();
+  checkAlerts(c);
+}
+setInterval(tick,1000);
+
+/* ===== 서비스워커 ===== */
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  if(navigator.serviceWorker.controller){ let reloaded=false; navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(reloaded) return; reloaded=true; location.reload(); }); }
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').then(r=>r.update()).catch(()=>{}));
+}
+
+/* ===== 시작 ===== */
+rolloverIfNewDay(); renderAll(); applyWake(); connectSync(); armHomeGuard();
+window.addEventListener('storage',e=>{ if(e.key==='wr_shared'){ S=normalize(load('wr_shared',DEF_SHARED)); renderAll(); } if(e.key==='wr_local'){ L=load('wr_local',DEF_LOCAL); renderAll(); } });
+</script>
+</body>
+</html>

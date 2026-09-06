@@ -648,10 +648,9 @@ async function openPip(opt={}){
       if(!pipVideoOn){
         const size={wide:[480,270],square:[400,400],tall:[300,420]}[L.pipShape]||[480,270];
         const cv=document.createElement('canvas'); cv.width=size[0]; cv.height=size[1]; pipCanvas=cv; drawPipCanvas();
-        const stream=cv.captureStream(4); const at=silentAudioTrack(); if(at) stream.addTrack(at);
-        v.srcObject=stream; v.muted=!at; pipVideoOn=true;
+        v.srcObject=cv.captureStream(4); v.muted=true; pipVideoOn=true;
       }
-      await v.play(); setupMediaSession(v); await v.requestPictureInPicture();
+      await v.play(); await v.requestPictureInPicture();
       v.addEventListener('leavepictureinpicture',()=>{ v.pause(); },{once:true});
       if(!quiet) toast('떠 있는 창을 열었어요 (보기 전용). 두 손가락으로 크기 조절, 모양은 설정에서');
       return true;
@@ -661,22 +660,6 @@ async function openPip(opt={}){
   return false;
 }
 let pipCanvas=null;
-/* PiP 창을 탭하면 나오는 ⏮ ⏭ 버튼에 기능 연결 (안드로이드 영상형 PiP) */
-function silentAudioTrack(){
-  try{ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==='suspended') audioCtx.resume();
-    const dst=audioCtx.createMediaStreamDestination(); const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); g.gain.value=0; o.connect(g).connect(dst); o.start();
-    return dst.stream.getAudioTracks()[0]||null; }catch{ return null; }
-}
-function setupMediaSession(v){
-  if(!('mediaSession' in navigator)) return; const ms=navigator.mediaSession;
-  try{ ms.metadata=new MediaMetadata({title:`${S.name||'원장님'} 근무·휴식`, artist:'⏭ 쉬기 / 다시 일하기 · ⏮ 빨간불', artwork:[{src:'./icon-192.png',sizes:'192x192',type:'image/png'},{src:'./icon-512.png',sizes:'512x512',type:'image/png'}]}); }catch{}
-  const h=(a,f)=>{ try{ ms.setActionHandler(a,f); }catch{} };
-  const keep=()=>{ v.play().catch(()=>{}); try{ ms.playbackState='playing'; }catch{} };
-  h('play',keep); h('pause',keep); h('stop',keep);
-  h('nexttrack',()=>{ if(!L.ctrl) return toast('보기 전용 기기예요'); if(S.status==='working') startBreak(S.breakMin); else if(S.status==='break') act('resume'); else act('start'); });
-  h('previoustrack',()=>{ if(!L.ctrl) return toast('보기 전용 기기예요'); act('alarm'); });
-  try{ ms.playbackState='playing'; }catch{}
-}
 setInterval(()=>{ if(pipVideoOn) drawPipCanvas(); },500);
 function fitText(ctx, text, maxW){ if(ctx.measureText(text).width<=maxW) return text; while(text.length>1 && ctx.measureText(text+'…').width>maxW) text=text.slice(0,-1); return text+'…'; }
 function drawPipCanvas(){
@@ -690,14 +673,12 @@ function drawPipCanvas(){
   if(S.alarm){ const on=Math.floor(now/500)%2===0; bg=on?'#dc2626':'#450a0a'; fg='#fff'; badge='🚨 시술 그만'; sub='원장님이 힘들어요 · 더 잡지 마세요'; }
   const u=Math.min(W,H)/270;
   const note=(S.note||'').trim();
-  const nextLabel = c.status==='working' ? '쉬기' : c.status==='break' ? '다시 일하기' : '근무 시작';
   const lines=[
     {t:`${S.name||'원장님'} · ${badge}`, f:24, c:fg, b:true},
     {t:big, f:58, c:'#fff', b:true},
     {t:sub, f:34, c:'#fef3c7', b:true},
   ];
   if(note) lines.push({t:'💬 '+note.replace(/\s+/g,' '), f:24, c:'#e2e8f0'});
-  if(L.ctrl) lines.push({t:`창을 탭 → ⏭ ${nextLabel} · ⏮ ${S.alarm?'빨간불 해제':'빨간불'}`, f:17, c:'rgba(255,255,255,.75)'});
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); ctx.textAlign='center'; ctx.textBaseline='middle';
   const rowH=H/(lines.length+0.4); let y=rowH*0.7;
   for(const ln of lines){ ctx.fillStyle=ln.c; let f=ln.f*u; const setF=()=>{ ctx.font=`${ln.b?'bold ':''}${Math.round(f)}px sans-serif`; }; setF();

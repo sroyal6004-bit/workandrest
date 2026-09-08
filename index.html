@@ -54,6 +54,13 @@ header h1 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .meta b{color:var(--text);font-weight:600}
 .actions{display:grid;gap:10px;grid-template-columns:1fr}
 .actions.two{grid-template-columns:1fr 1fr}
+.actions.three{grid-template-columns:1.2fr 1fr 1fr}
+.btn.wait{background:rgba(56,189,248,.16);color:#7dd3fc;font-size:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.btn.wait .ic{font-size:22px}
+.btn.wait.on{background:var(--accent);color:#082f49}
+.status-card.waiting{border-color:var(--accent)}
+.waiting .badge{background:rgba(56,189,248,.2);color:#7dd3fc}
+.waiting .bar i{background:var(--accent)}
 .btn{padding:18px 14px;border-radius:16px;font-size:19px;font-weight:700;background:var(--card2);min-height:56px}
 .btn.primary{background:var(--green);color:#052e16}
 .btn.break{background:var(--purple);color:#1e1b4b}
@@ -124,10 +131,12 @@ body.mini .timer{font-size:clamp(34px,18vw,56px)}
 body.mini .next{font-size:15px}
 body.mini .btn{font-size:16px;padding:14px 10px;min-height:48px}
 body.mini .actions.two{grid-template-columns:1fr}
+body.mini .actions.three{grid-template-columns:1fr 1fr} body.mini .actions.three .btn.stop{grid-column:1/-1}
 /* 좁은 화면(분할·스냅 창) */
 @media (max-width:380px){
   #app{padding:8px 10px;gap:8px} .card{padding:12px} .btn{font-size:16px;padding:14px 10px}
   .meta{gap:8px;font-size:12px} .actions.two{grid-template-columns:1fr} .tools .btn{flex-basis:45%}
+  .actions.three{grid-template-columns:1fr 1fr} .actions.three .btn.stop{grid-column:1/-1}
 }
 /* PiP 창 */
 /* 원장님 메모 */
@@ -153,6 +162,7 @@ body.pip .next{font-size:clamp(16px,7vw,34px);font-weight:800;line-height:1.25}
 body.pip .meta{display:none} body.pip .name{display:none}
 body.pip .btn{font-size:clamp(13px,4.5vw,17px);padding:8px;min-height:40px;border-radius:12px}
 body.pip .actions.two{grid-template-columns:1fr 1fr} body.pip .actions{gap:5px}
+body.pip .actions.three{grid-template-columns:1fr 1fr 1fr} body.pip .btn.wait{font-size:clamp(11px,3.5vw,14px)} body.pip .btn.wait .ic{font-size:16px}
 body.pip .btn.stop{font-size:clamp(10px,3vw,12px);gap:2px} body.pip .btn.stop .circle{width:28px;height:28px;font-size:10px}
 body.pip .alarm-banner{font-size:clamp(12px,4vw,16px);padding:6px}
 body.pip .notebox{padding:8px 10px;border-radius:10px} body.pip .notebox .txt{font-size:clamp(12px,4.5vw,18px)} body.pip .notebox .at{display:none} body.pip .notebox .ic{font-size:16px}
@@ -323,7 +333,7 @@ if(IS_MINI) document.body.classList.add('mini');
 function load(k, def){ try{ const v=JSON.parse(localStorage.getItem(k)||'null'); return v? Object.assign({}, def, v) : {...def}; }catch{ return {...def}; } }
 function saveShared(push=true){ localStorage.setItem('wr_shared', JSON.stringify(S)); if(push) pushShared(); }
 function saveLocal(){ localStorage.setItem('wr_local', JSON.stringify(L)); }
-function normalize(r){ const o=Object.assign({}, DEF_SHARED, r||{}); o.events=Array.isArray(o.events)?o.events.filter(e=>e&&typeof e.t==='number'&&e.type).sort((a,b)=>a.t-b.t):[]; o.workMin=+o.workMin||90; o.breakMin=+o.breakMin||10; o.warnMin=Math.max(0,+o.warnMin||0); if(!['off','working','break'].includes(o.status)) o.status='off'; o.alarm=!!o.alarm; o.breakAt=+o.breakAt||0; o.note=typeof o.note==='string'?o.note.slice(0,300):''; o.noteAt=+o.noteAt||0; o.breakLen=+o.breakLen||0; o.orangeMin=Math.max(0,+o.orangeMin||0); o.presets=Array.isArray(o.presets)?o.presets.filter(x=>typeof x==='string'&&x.trim()).map(x=>x.slice(0,60)).slice(0,30):[...DEF_SHARED.presets]; return o; }
+function normalize(r){ const o=Object.assign({}, DEF_SHARED, r||{}); o.events=Array.isArray(o.events)?o.events.filter(e=>e&&typeof e.t==='number'&&e.type).sort((a,b)=>a.t-b.t):[]; o.workMin=+o.workMin||90; o.breakMin=+o.breakMin||10; o.warnMin=Math.max(0,+o.warnMin||0); if(!['off','working','break','waiting'].includes(o.status)) o.status='off'; o.alarm=!!o.alarm; o.breakAt=+o.breakAt||0; o.note=typeof o.note==='string'?o.note.slice(0,300):''; o.noteAt=+o.noteAt||0; o.breakLen=+o.breakLen||0; o.orangeMin=Math.max(0,+o.orangeMin||0); o.presets=Array.isArray(o.presets)?o.presets.filter(x=>typeof x==='string'&&x.trim()).map(x=>x.slice(0,60)).slice(0,30):[...DEF_SHARED.presets]; return o; }
 S = normalize(S);
 
 /* ===== 유틸 ===== */
@@ -351,24 +361,27 @@ function calc(now){
   const ev=S.events; const r={status:S.status, events:ev};
   if(!ev.length){ r.status='off'; r.empty=true; return r; }
   const start=ev[0].t, last=ev[ev.length-1];
-  let breakMs=0, lastWorkStart=start, curBreakStart=null, breaks=0;
+  let breakMs=0, waitMs=0, segWaitMs=0, lastWorkStart=start, curBreakStart=null, curWaitStart=null, breaks=0, waits=0;
   for(const e of ev){
     if(e.type==='break'){ curBreakStart=e.t; breaks++; }
     else if(curBreakStart!=null && (e.type==='resume'||e.type==='end')){ breakMs+=e.t-curBreakStart; curBreakStart=null; }
-    if(e.type==='start'||e.type==='resume') lastWorkStart=e.t;
+    if(e.type==='wait'){ curWaitStart=e.t; waits++; }
+    else if(curWaitStart!=null && (e.type==='go'||e.type==='break'||e.type==='end')){ const d=e.t-curWaitStart; waitMs+=d; segWaitMs+=d; curWaitStart=null; }
+    if(e.type==='start'||e.type==='resume'){ lastWorkStart=e.t; segWaitMs=0; }
   }
   if(r.status==='break' && curBreakStart!=null) breakMs += now-curBreakStart;
+  if(r.status==='waiting' && curWaitStart!=null){ const d=now-curWaitStart; waitMs+=d; segWaitMs+=d; r.waitSince=curWaitStart; }
   const endT = last.type==='end' ? last.t : now;
-  r.start=start; r.breakMs=breakMs; r.breaks=breaks; r.totalWork=Math.max(0,endT-start-breakMs);
-  if(r.status==='working'){ r.segStart=lastWorkStart; r.segMs=now-lastWorkStart; r.dueAt=lastWorkStart+S.workMin*60000; if(S.breakAt>lastWorkStart){ r.dueAt=S.breakAt; r.custom=true; } r.remain=r.dueAt-now; r.total=r.dueAt-lastWorkStart; }
+  r.start=start; r.breakMs=breakMs; r.breaks=breaks; r.waitMs=waitMs; r.waits=waits; r.totalWork=Math.max(0,endT-start-breakMs-waitMs);
+  if(r.status==='working'||r.status==='waiting'){ r.segStart=lastWorkStart; r.segMs=now-lastWorkStart-segWaitMs; r.dueAt=lastWorkStart+S.workMin*60000+segWaitMs; if(S.breakAt>lastWorkStart){ r.dueAt=S.breakAt; r.custom=true; } r.remain=r.dueAt-now; r.total=r.dueAt-lastWorkStart-segWaitMs; }
   else if(r.status==='break'){ r.segStart=curBreakStart??last.t; r.segMs=now-r.segStart; const bl=(S.breakLen||S.breakMin)*60000; r.dueAt=r.segStart+bl; r.remain=r.dueAt-now; r.total=bl; }
   else { r.endedAt = last.type==='end'? last.t : null; }
   return r;
 }
 
 /* ===== 렌더 ===== */
-const EV_LABEL={start:'근무 시작',break:'휴식 시작',resume:'다시 근무',end:'퇴근'};
-const EV_ICON={start:'🟢',break:'🧘',resume:'💪',end:'🏁'};
+const EV_LABEL={start:'근무 시작',break:'휴식 시작',resume:'다시 근무',end:'퇴근',wait:'진료실 대기',go:'대기 끝'};
+const EV_ICON={start:'🟢',break:'🧘',resume:'💪',end:'🏁',wait:'🪑',go:'▶️'};
 
 function statusMarkup(){
   return `<section class="card status-card" data-id="card">
@@ -392,7 +405,7 @@ function renderStatic(root){
   const stopBtn=`<button class="btn stop ${S.alarm?'on':''}" data-act="alarm" title="시술 마감 신호"><span class="circle">${S.alarm?'해제':''}</span><span>${S.alarm?'빨간불 해제':'시술 그만 (빨간불)'}</span></button>`;
   if(!L.ctrl){ acts.className='actions'; acts.innerHTML=`<div class="viewonly">보기 전용 기기 (설정에서 조작 버튼을 켤 수 있어요)</div>`; }
   else if(st==='off'){ acts.className='actions two'; acts.innerHTML=`<button class="btn primary" data-act="start">▶ 근무 시작</button>${stopBtn}`; }
-  else if(st==='working'){ acts.className='actions two'; acts.innerHTML=`<button class="btn break" data-act="break">🧘 쉬기 시작</button>${stopBtn}`; }
+  else if(st==='working'||st==='waiting'){ const w=st==='waiting'; acts.className='actions three'; acts.innerHTML=`<button class="btn break" data-act="break">🧘 쉬기 시작</button><button class="btn wait ${w?'on':''}" data-act="wait"><span class="ic">${w?'▶️':'🪑'}</span><span>${w?'대기 해제':'진료실 대기'}</span></button>${stopBtn}`; }
   else { acts.className='actions two'; acts.innerHTML=`<button class="btn primary" data-act="resume">💪 다시 일하기</button>${stopBtn}`; }
   renderLive(root);
 }
@@ -407,6 +420,9 @@ function renderLive(root){
     timer=clock(c.segMs); tlabel='연속 근무 시간'; pct=Math.min(100,c.segMs/c.total*100);
     if(c.remain>0){ cls+=' working'; badge='근무 중'; next=`다음 휴식까지 <b>${durCeil(c.remain)}</b> · ${hm(c.dueAt)} 예정${c.custom?' (조절됨)':''}`; }
     else { const over=-c.remain; cls+= over>10*60000?' over':' due'; badge='🧘 휴식 시간이에요!'; next=`${hm(c.dueAt)} 휴식 예정이었어요 · <b>${durCeil(over)}</b> 지남`; pct=100; }
+  } else if(c.status==='waiting'){
+    cls+=' waiting'; badge='🪑 진료실 대기 중'; timer=clock(c.segMs); tlabel='연속 근무 시간 (멈춤)'; pct=Math.min(100,c.segMs/c.total*100);
+    next=`대기 <b>${durCeil(now-c.waitSince)}</b> · 다음 휴식까지 ${durCeil(Math.max(0,c.remain))} 남음 (멈춤)`;
   } else if(c.status==='break'){
     timer=clock(c.segMs); tlabel='휴식 경과 시간'; pct=Math.min(100,c.segMs/c.total*100);
     if(c.remain>0){ cls+=' break'; badge='🧘 휴식 중'; next=`휴식 끝까지 <b>${durCeil(c.remain)}</b> · ${hm(c.dueAt)}까지`; }
@@ -419,17 +435,17 @@ function renderLive(root){
   card.className=cls; q('badge').textContent=badge; q('name').textContent=S.name||'원장님';
   q('timer').textContent=timer; q('tlabel').textContent=tlabel; const nx=q('next'); nx.innerHTML=next; nx.classList.toggle('clickable', L.ctrl && c.status==='working'); nx.dataset.adjust = (L.ctrl && c.status==='working') ? '1' : '';
   root.ownerDocument.body.classList.toggle('alarm', !!S.alarm);
-  root.ownerDocument.body.classList.toggle('warn1h', c.status==='working' && S.orangeMin>0 && c.segMs>=S.orangeMin*60000);
+  root.ownerDocument.body.classList.toggle('warn1h', (c.status==='working'||c.status==='waiting') && S.orangeMin>0 && c.segMs>=S.orangeMin*60000);
   const nb=q('note'); const hasNote=!!(S.note&&S.note.trim());
   nb.classList.toggle('show', hasNote || L.ctrl); nb.classList.toggle('clickable', L.ctrl); nb.dataset.note = L.ctrl?'1':'';
   const tx=nb.querySelector('.txt'); tx.textContent = hasNote? S.note : '메모를 남기려면 누르세요'; tx.classList.toggle('empty',!hasNote);
   nb.querySelector('.at').textContent = hasNote && S.noteAt ? hm(S.noteAt) : '';
   q('bar').style.width=pct+'%';
-  const body=root.ownerDocument.body; const grade = c.status==='working' && c.remain>0;
+  const body=root.ownerDocument.body; const grade = (c.status==='working'||c.status==='waiting') && c.remain>0;
   const col = grade ? progressColor(c.segMs/c.total) : '';
-  q('bar').style.background = col; card.style.borderColor = col;
+  q('bar').style.background = c.status==='working'? col : ''; card.style.borderColor = c.status==='working'? col : '';
   if(body.classList.contains('pip')){ body.classList.toggle('graded', grade); if(grade) body.style.setProperty('--pipbg', col); else body.style.removeProperty('--pipbg'); }
-  q('meta').innerHTML = c.empty ? '' : `<span>출근 <b>${hm(c.start)}</b></span><span>총 근무 <b>${dur(c.totalWork)}</b></span><span>휴식 <b>${c.breaks}회 ${dur(c.breakMs)}</b></span>`;
+  q('meta').innerHTML = c.empty ? '' : `<span>출근 <b>${hm(c.start)}</b></span><span>총 근무 <b>${dur(c.totalWork)}</b></span><span>휴식 <b>${c.breaks}회 ${dur(c.breakMs)}</b></span>${c.waitMs>0?`<span>대기 <b>${dur(c.waitMs)}</b></span>`:''}`;
   return c;
 }
 
@@ -446,7 +462,12 @@ function renderAll(){ renderStatic($('#main')); if(pipWin) renderStatic(pipWin.d
 function act(type){
   const now=Date.now();
   if(type==='start'){ if(S.events.length && S.status!=='off') return; S.events=[{t:now,type:'start'}]; S.status='working'; toast('근무 시작! 힘내세요 💪'); }
-  else if(type==='break'){ if(S.status!=='working') return; try{ window.focus(); }catch{} openLayer('breakLenSheet', ()=>{ $('#breakLenChoice').querySelectorAll('[data-blen]').forEach(b=>b.classList.toggle('sel', +b.dataset.blen===S.breakMin)); }); return; }
+  else if(type==='wait'){
+    if(S.status==='working'){ S.events.push({t:now,type:'wait'}); S.status='waiting'; toast('진료실 대기 🪑 시간을 멈췄어요'); }
+    else if(S.status==='waiting'){ const ws=[...S.events].reverse().find(e=>e.type==='wait'); S.events.push({t:now,type:'go'}); S.status='working'; if(S.breakAt && ws) S.breakAt+=now-ws.t; toast('대기 끝 ▶️ 시간이 다시 흘러요'); }
+    else return;
+  }
+  else if(type==='break'){ if(S.status!=='working'&&S.status!=='waiting') return; try{ window.focus(); }catch{} openLayer('breakLenSheet', ()=>{ $('#breakLenChoice').querySelectorAll('[data-blen]').forEach(b=>b.classList.toggle('sel', +b.dataset.blen===S.breakMin)); }); return; }
   else if(type==='resume'){ if(S.status!=='break') return; S.events.push({t:now,type:'resume'}); S.status='working'; S.breakLen=0; toast('다시 근무 시작'); }
   else if(type==='end'){ if(S.status==='off') return; if(!confirm('오늘 근무를 마칠까요?')) return; S.events.push({t:now,type:'end'}); S.status='off'; toast('수고하셨습니다 🏁'); }
   else if(type==='alarm'){ S.alarm=!S.alarm; toast(S.alarm?'🚨 모든 기기에 빨간불! 시술을 더 잡지 마세요':'빨간불을 해제했어요'); }
@@ -485,11 +506,11 @@ $('#breakCancel').onclick=uiBack;
 $('#breakLenCancel').onclick=uiBack;
 $('#breakLenChoice').addEventListener('click', e=>{
   const b=e.target.closest('[data-blen]'); if(!b) return; const m=+b.dataset.blen;
-  if(S.status!=='working') return uiBack();
+  if(S.status!=='working'&&S.status!=='waiting') return uiBack();
   startBreak(m); uiBack();
 });
 function startBreak(m){
-  if(S.status!=='working') return;
+  if(S.status!=='working'&&S.status!=='waiting') return;
   const now=Date.now(); S.events.push({t:now,type:'break'}); S.status='break'; S.breakLen=m; S.breakAt=0; S.updated=now; saveShared(); renderAll();
   toast(`${m>=60?'1시간':m+'분'} 휴식 시작 🧘 ${hm(now+m*60000)}까지`);
 }
@@ -683,6 +704,7 @@ function drawPipCanvas(){
   const theme={working:['#14532d','#22c55e'],break:['#312e81','#a78bfa'],off:['#1e293b','#94a3b8']};
   let [bg,fg]=theme[c.status]||theme.off; let badge, big, sub;
   if(c.status==='working'){ big=clock(c.segMs); if(c.remain>0){ badge='근무 중'; sub=`다음 휴식까지 ${durCeil(c.remain)} (${hm(c.dueAt)})`; bg=progressColor(c.segMs/c.total); fg='#fff'; } else { badge='휴식 시간이에요!'; sub=`${durCeil(-c.remain)} 지남`; bg=Math.floor(now/1000)%2? '#b91c1c':'#7f1d1d'; fg='#fde68a'; } }
+  else if(c.status==='waiting'){ big=clock(c.segMs); badge='🪑 진료실 대기 중'; sub=`시간 멈춤 · 대기 ${durCeil(now-c.waitSince)}`; bg='#0c4a6e'; fg='#7dd3fc'; }
   else if(c.status==='break'){ big=clock(c.segMs); if(c.remain>0){ badge='휴식 중'; sub=`휴식 끝까지 ${durCeil(c.remain)} (${hm(c.dueAt)})`; } else { badge='휴식 끝'; sub=`다시 일할 시간 · ${durCeil(-c.remain)} 지남`; bg='#7c2d12'; fg='#fbbf24'; } }
   else if(c.empty){ badge='근무 전'; big='--:--'; sub='아직 시작 안 함'; }
   else { badge='퇴근'; big=dur(c.totalWork); sub=`${hm(c.start)} 출근 · 총 근무`; }

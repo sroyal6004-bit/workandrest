@@ -46,7 +46,7 @@ header h1 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .name{font-size:15px;color:var(--muted)}
 .timer{font-size:clamp(44px,14vw,72px);font-weight:800;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1.05}
 .timer-label{font-size:13px;color:var(--muted);margin-top:-4px}
-.next{font-size:17px;font-weight:600;line-height:1.4}
+.next{font-size:17px;font-weight:600;line-height:1.4;word-break:keep-all}
 .bar{height:8px;background:var(--bg);border-radius:6px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--green);border-radius:6px;transition:width 1s linear}
 .break .bar i{background:var(--purple)} .due .bar i,.over .bar i{background:var(--orange)}
@@ -148,21 +148,28 @@ body.mini .actions.three{grid-template-columns:1fr 1fr} body.mini .actions.three
 .notebox .at{font-size:12px;color:var(--muted);flex:none;margin-top:3px}
 .notebox.clickable{cursor:pointer}
 /* PiP 창: 창 크기에 따라 글자가 함께 커지고 작아짐 */
-body.pip{padding:0;overflow:hidden;min-height:100vh;display:flex;flex-direction:column;transition:background .5s linear}
+body.pip{padding:0;overflow:auto;min-height:100vh;display:flex;flex-direction:column;transition:background .5s linear}
 body.pip.graded{background:var(--pipbg,var(--bg))}
 body.pip.graded .card{background:rgba(0,0,0,.28);border-color:rgba(255,255,255,.35)}
 body.pip.graded .badge{background:rgba(0,0,0,.25);color:#fff}
 body.pip.graded .timer-label,body.pip.graded .next{color:#fff}
-body.pip #app{padding:6px;gap:5px;min-height:100vh;justify-content:center}
+body.pip.graded .timer,body.pip.graded .next,body.pip.graded .badge{text-shadow:0 1px 3px rgba(0,0,0,.35)}
+body.pip.graded .bar{background:rgba(0,0,0,.3)} body.pip.graded .bar i{background:rgba(255,255,255,.9)!important}
+body.pip #app{padding:6px;gap:5px;min-height:100vh;justify-content:safe center}
+body.pip .btn{white-space:nowrap}
 body.pip .card{padding:clamp(6px,2vw,12px);gap:4px;border-radius:12px}
 body.pip .badge{font-size:clamp(11px,3.6vw,15px);padding:3px 10px}
 body.pip .timer{font-size:clamp(20px,9vw,40px);letter-spacing:0}
 body.pip .timer-label{font-size:clamp(10px,3vw,12px);margin-top:-2px}
-body.pip .next{font-size:clamp(16px,7vw,34px);font-weight:800;line-height:1.25}
+body.pip .next{font-size:clamp(15px,6.2vw,30px);font-weight:800;line-height:1.25}
 body.pip .meta{display:none} body.pip .name{display:none}
 body.pip .btn{font-size:clamp(13px,4.5vw,17px);padding:8px;min-height:40px;border-radius:12px}
 body.pip .actions.two{grid-template-columns:1fr 1fr} body.pip .actions{gap:5px}
 body.pip .actions.three{grid-template-columns:1fr 1fr 1fr} body.pip .btn.wait{font-size:clamp(11px,3.5vw,14px)} body.pip .btn.wait .ic{font-size:16px}
+@media (max-width:440px){
+  body.pip .actions.three{grid-template-columns:1fr 1fr}
+  body.pip .actions.three .btn.stop{grid-column:1/-1;flex-direction:row;gap:10px;min-height:40px;padding:6px}
+}
 body.pip .btn.stop{font-size:clamp(10px,3vw,12px);gap:2px} body.pip .btn.stop .circle{width:28px;height:28px;font-size:10px}
 body.pip .alarm-banner{font-size:clamp(12px,4vw,16px);padding:6px}
 body.pip .notebox{padding:8px 10px;border-radius:10px} body.pip .notebox .txt{font-size:clamp(12px,4.5vw,18px)} body.pip .notebox .at{display:none} body.pip .notebox .ic{font-size:16px}
@@ -324,7 +331,7 @@ const FIRESTORE_DB = 'default'; /* Firebase 콘솔에 만든 Firestore 데이터
 /* ===== 상태 ===== */
 const SPACE_ID = 'workandrest-clinic-main'; /* 병원 공용 공간 ID (Firestore 문서 이름, 10자 이상) */
 const DEF_SHARED = { name:'원장님', workMin:90, breakMin:10, warnMin:5, status:'off', events:[], alarm:false, breakAt:0, note:'', noteAt:0, breakLen:0, orangeMin:60, presets:['오늘 리터치 그만','쉬게 해줘~~','다시 잡아도 됨','리터치는 하고 시술은 예약'], updated:0 };
-const DEF_LOCAL  = { ctrl:true, notify:false, sound:false, wake:false, pipShape:'wide', pipW:320, pipH:300 };
+const DEF_LOCAL  = { ctrl:true, notify:false, sound:false, wake:false, pipShape:'wide', pipW:340, pipH:420 };
 let S = load('wr_shared', DEF_SHARED);
 let L = load('wr_local', DEF_LOCAL);
 const IS_MINI = new URLSearchParams(location.search).get('mini')==='1';
@@ -348,8 +355,8 @@ function dayKey(t){ const d=new Date(t); return d.getFullYear()*10000+(d.getMont
 /* 진행률 0→1: 밝은 초록 → 주황 → 빨강 */
 function progressColor(p){
   p=Math.max(0,Math.min(1,p||0));
-  const K=[[140,70,38],[35,92,44],[0,80,42]];
-  const t=p<0.5? p/0.5 : (p-0.5)/0.5; const [a,b]=p<0.5? [K[0],K[1]] : [K[1],K[2]];
+  const K=[[145,62,36],[110,52,36],[48,92,44],[27,92,45],[0,78,42]]; // 초록 → 연두 → 황금 → 주황 → 빨강
+  const seg=Math.min(K.length-2, Math.floor(p*(K.length-1))); const t=p*(K.length-1)-seg; const a=K[seg], b=K[seg+1];
   const m=(x,y)=>Math.round(x+(y-x)*t);
   return `hsl(${m(a[0],b[0])} ${m(a[1],b[1])}% ${m(a[2],b[2])}%)`;
 }

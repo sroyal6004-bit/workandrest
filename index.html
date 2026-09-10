@@ -338,7 +338,9 @@ const IS_MINI = new URLSearchParams(location.search).get('mini')==='1';
 if(IS_MINI) document.body.classList.add('mini');
 
 function load(k, def){ try{ const v=JSON.parse(localStorage.getItem(k)||'null'); return v? Object.assign({}, def, v) : {...def}; }catch{ return {...def}; } }
-function saveShared(push=true){ localStorage.setItem('wr_shared', JSON.stringify(S)); if(push) pushShared(); }
+let dirty=false; /* 이 기기에서 아직 서버에 안 올라간 조작이 있는지 */
+function stamp(){ S.updated=Math.max(Date.now(), (S.updated||0)+1); }
+function saveShared(push=true){ localStorage.setItem('wr_shared', JSON.stringify(S)); if(push){ dirty=true; pushShared(); } }
 function saveLocal(){ localStorage.setItem('wr_local', JSON.stringify(L)); }
 function normalize(r){ const o=Object.assign({}, DEF_SHARED, r||{}); o.events=Array.isArray(o.events)?o.events.filter(e=>e&&typeof e.t==='number'&&e.type).sort((a,b)=>a.t-b.t):[]; o.workMin=+o.workMin||90; o.breakMin=+o.breakMin||10; o.warnMin=Math.max(0,+o.warnMin||0); if(!['off','working','break','waiting'].includes(o.status)) o.status='off'; o.alarm=!!o.alarm; o.breakAt=+o.breakAt||0; o.note=typeof o.note==='string'?o.note.slice(0,300):''; o.noteAt=+o.noteAt||0; o.breakLen=+o.breakLen||0; o.orangeMin=Math.max(0,+o.orangeMin||0); o.presets=Array.isArray(o.presets)?o.presets.filter(x=>typeof x==='string'&&x.trim()).map(x=>x.slice(0,60)).slice(0,30):[...DEF_SHARED.presets]; return o; }
 S = normalize(S);
@@ -480,7 +482,7 @@ function act(type){
   else if(type==='alarm'){ S.alarm=!S.alarm; toast(S.alarm?'🚨 모든 기기에 빨간불! 시술을 더 잡지 마세요':'빨간불을 해제했어요'); }
   else return;
   if(type==='break'||type==='resume'||type==='start') S.breakAt=0;
-  S.updated=now; saveShared(); renderAll();
+  stamp(); saveShared(); renderAll();
 }
 document.addEventListener('click', e=>{
   const b=e.target.closest('[data-act]'); if(b){ act(b.dataset.act); return; }
@@ -495,7 +497,7 @@ function renderPresets(){
     (presetEditing?`<button class="chip add" data-addpreset>＋ 멘트 추가</button>`:'');
   $('#presetEdit').textContent=presetEditing?'완료':'편집';
 }
-function savePresets(){ S.updated=Date.now(); saveShared(); renderPresets(); }
+function savePresets(){ stamp(); saveShared(); renderPresets(); }
 $('#presetEdit').onclick=()=>{ presetEditing=!presetEditing; renderPresets(); };
 $('#presetList').addEventListener('click', e=>{
   const del=e.target.closest('[data-del]'); if(del){ const i=+del.dataset.del; if(confirm(`"${S.presets[i]}" 멘트를 지울까요?`)){ S.presets.splice(i,1); savePresets(); } return; }
@@ -505,7 +507,7 @@ $('#presetList').addEventListener('click', e=>{
   setNote(S.presets[i]); uiBack(); toast('메모를 모든 기기에 표시했어요');
 });
 function openNote(){ presetEditing=false; openLayer('noteSheet', ()=>{ $('#noteText').value=S.note||''; renderPresets(); }); }
-function setNote(t){ S.note=t.trim().slice(0,300); S.noteAt=S.note?Date.now():0; prevNote=S.note; S.updated=Date.now(); saveShared(); renderAll(); }
+function setNote(t){ S.note=t.trim().slice(0,300); S.noteAt=S.note?Date.now():0; prevNote=S.note; stamp(); saveShared(); renderAll(); }
 $('#noteSave').onclick=()=>{ setNote($('#noteText').value); uiBack(); toast(S.note?'메모를 모든 기기에 표시했어요':'메모를 지웠어요'); };
 $('#noteClear').onclick=()=>{ setNote(''); uiBack(); toast('메모를 지웠어요'); };
 $('#noteCancel').onclick=uiBack;
@@ -518,19 +520,19 @@ $('#breakLenChoice').addEventListener('click', e=>{
 });
 function startBreak(m){
   if(S.status!=='working'&&S.status!=='waiting') return;
-  const now=Date.now(); S.events.push({t:now,type:'break'}); S.status='break'; S.breakLen=m; S.breakAt=0; S.updated=now; saveShared(); renderAll();
+  const now=Date.now(); S.events.push({t:now,type:'break'}); S.status='break'; S.breakLen=m; S.breakAt=0; stamp(); saveShared(); renderAll();
   toast(`${m>=60?'1시간':m+'분'} 휴식 시작 🧘 ${hm(now+m*60000)}까지`);
 }
 $('#breakSheet').addEventListener('click', e=>{
   const b=e.target.closest('[data-bmin]'); if(!b) return; const m=+b.dataset.bmin;
   if(S.status!=='working') return uiBack();
-  S.breakAt = m? Date.now()+m*60000 : 0; S.updated=Date.now(); saveShared(); renderAll(); uiBack();
+  S.breakAt = m? Date.now()+m*60000 : 0; stamp(); saveShared(); renderAll(); uiBack();
   toast(m? `${m}분 후(${hm(S.breakAt)}) 휴식으로 맞췄어요` : '기본 간격으로 되돌렸어요');
 });
 /* 날짜가 바뀌면 어제 기록은 자동 정리 */
 function rolloverIfNewDay(){
   if(!S.events.length || dayKey(S.events[0].t)===dayKey(Date.now())) return false;
-  S.events=[]; S.status='off'; S.breakAt=0; S.alarm=false; S.updated=Date.now(); saveShared(); return true;
+  S.events=[]; S.status='off'; S.breakAt=0; S.alarm=false; S.breakLen=0; S.note=''; S.noteAt=0; saveShared(false); return true;
 }
 
 /* ===== 레이어(뒤로가기) ===== */
@@ -576,7 +578,7 @@ $('#editSave').onclick=()=>{
   if(prev && nt<=prev.t) return toast(`이전 기록(${hm(prev.t)})보다 뒤여야 해요`);
   if(next && nt>=next.t) return toast(`다음 기록(${hm(next.t)})보다 앞이어야 해요`);
   if(!next && nt>Date.now()) return toast('미래 시간은 넣을 수 없어요');
-  e.t=nt; S.updated=Date.now(); saveShared(); renderAll(); uiBack(); toast('수정했어요');
+  e.t=nt; stamp(); saveShared(); renderAll(); uiBack(); toast('수정했어요');
 };
 
 /* ===== 설정 ===== */
@@ -604,10 +606,10 @@ $('#saveSettings').onclick=()=>{
   saveLocal(); applyWake(); renderAll(); uiBack(); toast('저장했어요');
 };
 $('#endDayBtn').onclick=()=>{ if(S.status==='off') return toast('지금은 근무 중이 아니에요'); uiBack(); act('end'); };
-$('#resetDayBtn').onclick=()=>{ if(!confirm('오늘 기록을 모두 지울까요? (연결된 기기에도 반영됩니다)')) return; S.events=[]; S.status='off'; S.breakAt=0; S.alarm=false; S.updated=Date.now(); saveShared(); renderAll(); uiBack(); toast('지웠어요'); };
+$('#resetDayBtn').onclick=()=>{ if(!confirm('오늘 기록을 모두 지울까요? (연결된 기기에도 반영됩니다)')) return; S.events=[]; S.status='off'; S.breakAt=0; S.alarm=false; S.breakLen=0; stamp(); saveShared(); renderAll(); uiBack(); toast('지웠어요'); };
 $('#exportBtn').onclick=()=>{ const blob=new Blob([JSON.stringify({shared:S,exported:Date.now()},null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`workrest-${new Date().toISOString().slice(0,10)}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); };
 $('#importBtn').onclick=()=>$('#importFile').click();
-$('#importFile').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; try{ const j=JSON.parse(await f.text()); const r=normalize(j.shared||j); if((r.updated||0)>=(S.updated||0)||confirm('가져오는 데이터가 현재보다 오래됐어요. 덮어쓸까요?')){ S=r; S.updated=Date.now(); saveShared(); renderAll(); toast('가져왔어요'); } }catch{ toast('파일을 읽을 수 없어요'); } };
+$('#importFile').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; try{ const j=JSON.parse(await f.text()); const r=normalize(j.shared||j); if((r.updated||0)>=(S.updated||0)||confirm('가져오는 데이터가 현재보다 오래됐어요. 덮어쓸까요?')){ S=r; stamp(); saveShared(); renderAll(); toast('가져왔어요'); } }catch{ toast('파일을 읽을 수 없어요'); } };
 
 /* ===== 알림 ===== */
 async function askNotify(){
@@ -754,19 +756,22 @@ async function connectSync(){
   setSync('wait');
   try{
     const f=await loadFb(cfg); fb={...f, ref:f.fsM.doc(f.db,'spaces',code)};
-    unsub=f.fsM.onSnapshot(fb.ref, snap=>{
-      setSync('on');
-      if(!snap.exists()){ if(S.updated) pushShared(); return; }
-      const r=normalize(snap.data());
-      if((r.updated||0)>(S.updated||0)){ S=r; saveShared(false); if(!rolloverIfNewDay()) renderAll(); else renderAll(); }
-      else if((S.updated||0)>(r.updated||0)) pushShared();
-    }, err=>{ setSync('err',err.code||err.message); toast('동기화 오류: '+(err.code||err.message)+' (설정 → 동기화 상태 점검)',4000); });
+    unsub=f.fsM.onSnapshot(fb.ref, snap=>{ setSync('on'); onRemote(snap.exists()? snap.data() : null); }, err=>{ setSync('err',err.code||err.message); toast('동기화 오류: '+(err.code||err.message)+' (설정 → 동기화 상태 점검)',4000); });
   }catch(e){ setSync('err',e.message); toast('Firebase 연결 실패: 설정을 확인해 주세요',3500); }
+}
+/* 서버 문서 수신: 서버가 더 새것이거나 이 기기에 미전송 조작이 없으면 서버를 따른다.
+   (어제 기록 정리, 시계가 틀린 기기 등이 서버를 덮어쓰지 않도록) */
+function onRemote(data){
+  if(!data){ if(dirty || S.events.length) pushShared(); return; }
+  const r=normalize(data);
+  const remoteNewer=(r.updated||0)>(S.updated||0);
+  if(remoteNewer || !dirty){ if(JSON.stringify(r)!==JSON.stringify(S)){ S=r; saveShared(false); rolloverIfNewDay(); renderAll(); } }
+  else pushShared();
 }
 let pushTimer=null;
 function pushShared(){
   if(!fb) return; clearTimeout(pushTimer);
-  pushTimer=setTimeout(async()=>{ try{ await fb.fsM.setDoc(fb.ref,{...S}); }catch(e){ setSync('err',e.code||e.message); toast('저장 실패: '+(e.code||e.message),3500); } },150);
+  pushTimer=setTimeout(async()=>{ const at=S.updated; try{ await fb.fsM.setDoc(fb.ref,{...S}); if(S.updated===at) dirty=false; }catch(e){ setSync('err',e.code||e.message); toast('저장 실패: '+(e.code||e.message),3500); } },150);
 }
 $('#diagBtn').onclick=async()=>{
   const out=$('#diagOut'); out.hidden=false; const lines=[]; const log=s=>{ lines.push(s); out.textContent=lines.join('\n'); };
